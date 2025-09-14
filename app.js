@@ -9,12 +9,3 @@ document.addEventListener('DOMContentLoaded', () => {
 	setupDocumentToolbar(network, nodes, edges);
 	network.fit();
 });
-
-// document.addEventListener('click', (e) => {
-//   if (!edgeToolbar.contains(e.target)) {
-//     hideToolbar();
-//   }
-//   if (!nodeToolbar.contains(e.target)) {
-//     hideToolbar();
-//   }
-// });

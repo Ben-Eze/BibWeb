@@ -9,18 +9,16 @@ export function setupNetwork() {
   const container = document.getElementById('network');
   const data = { nodes, edges };
   const options = {
-    physics: false,
-    layout: {
-      hierarchical: {
-        direction: 'UD',
-        sortMethod: 'directed',
-        nodeSpacing: 120,
-        levelSeparation: 120,
-        treeSpacing: 100,
-        blockShifting: false,
-        edgeMinimization: false,
+    physics: {
+      enabled: true,
+      stabilization: {iterations: 200},
+      repulsion: {
+        nodeDistance: 220,
+        springLength: 220,
+        springConstant: 0.02,
       }
     },
+    layout: {},
     nodes: {
       shape: 'box',
       margin: 10,

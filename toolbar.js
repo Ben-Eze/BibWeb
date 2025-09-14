@@ -3,6 +3,14 @@
 
 export function setupDocumentToolbar(network, nodes, edges) {
   document.getElementById('switchPhysics').onclick = function() {
+    // Get current positions
+    const currentPositions = network.getPositions();
+    // Set node positions to current
+    Object.entries(currentPositions).forEach(([id, pos]) => {
+      nodes.update({id: Number(id), x: pos.x, y: pos.y, fixed: false});
+    });
+
+    // Remove hierarchical layout forcibly
     network.setOptions({layout: {hierarchical: false}});
     network.setOptions({layout: {}});
     network.setOptions({
