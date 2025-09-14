@@ -39,11 +39,16 @@ const options = {
   physics: {
     enabled: true,
     stabilization: {iterations: 200},
+    repulsion: {
+      nodeDistance: 220,
+      springLength: 220,
+      springConstant: 0.02,
+    }
   },
   nodes: {
     shape: 'box',
     margin: 10,
-    widthConstraint: {maximum:200},
+    widthConstraint: {maximum:220},
     font: {multi: 'html'}
   },
   edges: {
@@ -65,8 +70,8 @@ function nextId(){
 
 function formatLabel(node){
   // label shows title and optional authors (short)
-  const authors = node.authors ? `<div style="font-size:12px;color:#444;margin-top:4px">${escapeHtml(node.authors)}</div>` : '';
-  return `<div style="font-weight:600">${escapeHtml(node.title)}</div>${authors}`;
+  const authors = node.authors ? `\n${escapeHtml(node.authors)}` : '';
+  return `${escapeHtml(node.title)}${authors}`;
 }
 
 function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
@@ -89,7 +94,14 @@ addPaperBtn.addEventListener('click', ()=>{
   saveToStorage();
 });
 
+function stripHtmlTags(str) {
+  if (!str) return '';
+  return str.replace(/<[^>]*>/g, '');
+}
+
 function addOrGetPaper({title, authors, notes}){
+  title = stripHtmlTags(title);
+  authors = stripHtmlTags(authors);
   const existing = findNodeByTitle(title);
   if(existing){
     // optionally update metadata
