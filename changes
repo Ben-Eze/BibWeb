@@ -1,0 +1,4 @@
+TODO:
+
+Add the ability to lock nodes in place when in physics mode. They can be dragged, but not affected by physics. This property is still stored when in hierarchical mode, but has no effect
+
