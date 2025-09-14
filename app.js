@@ -35,29 +35,117 @@ function saveToStorage(){
 // ---------- Network setup ----------
 const container = document.getElementById('network');
 const data = { nodes, edges };
-const options = {
+
+// Layout options
+const layouts = {
   physics: {
-    enabled: true,
-    stabilization: {iterations: 200},
-    repulsion: {
-      nodeDistance: 220,
-      springLength: 220,
-      springConstant: 0.02,
-    }
+    physics: {
+      enabled: true,
+      stabilization: {iterations: 200},
+      repulsion: {
+        nodeDistance: 220,
+        springLength: 220,
+        springConstant: 0.02,
+      }
+    },
+    layout: {},
+    nodes: {
+      shape: 'box',
+      margin: 10,
+      widthConstraint: {maximum:220},
+      font: {multi: 'html'}
+    },
+    edges: {
+      arrows: {to: {enabled: true, scaleFactor:1}},
+      smooth: {enabled:true, type:'cubicBezier'}
+    },
+    interaction: {hover:true, multiselect:false, navigationButtons:true}
   },
-  nodes: {
-    shape: 'box',
-    margin: 10,
-    widthConstraint: {maximum:220},
-    font: {multi: 'html'}
+  hierarchicalUD: {
+    physics: false,
+    layout: {
+      hierarchical: {
+        direction: 'UD',
+        sortMethod: 'directed',
+        nodeSpacing: 120,
+        levelSeparation: 120,
+        treeSpacing: 100,
+        blockShifting: false,
+        edgeMinimization: false,
+      }
+    },
+    nodes: {
+      shape: 'box',
+      margin: 10,
+      widthConstraint: {maximum:220},
+      font: {multi: 'html'}
+    },
+    edges: {
+      arrows: {to: {enabled: true, scaleFactor:1}},
+      smooth: {enabled:true, type:'cubicBezier'}
+    },
+    interaction: {hover:true, multiselect:false, navigationButtons:true}
   },
-  edges: {
-    arrows: {to: {enabled: true, scaleFactor:1}},
-    smooth: {enabled:true, type:'cubicBezier'}
-  },
-  interaction: {hover:true, multiselect:false, navigationButtons:true}
+  hierarchicalLR: {
+    physics: false,
+    layout: {
+      hierarchical: {
+        direction: 'LR',
+        sortMethod: 'directed',
+        nodeSpacing: 120,
+        levelSeparation: 120,
+        treeSpacing: 100,
+        blockShifting: false,
+        edgeMinimization: false,
+      }
+    },
+    nodes: {
+      shape: 'box',
+      margin: 10,
+      widthConstraint: {maximum:220},
+      font: {multi: 'html'}
+    },
+    edges: {
+      arrows: {to: {enabled: true, scaleFactor:1}},
+      smooth: {enabled:true, type:'cubicBezier'}
+    },
+    interaction: {hover:true, multiselect:false, navigationButtons:true}
+  }
 };
-const network = new vis.Network(container, data, options);
+
+let currentLayout = 'hierarchicalUD';
+const network = new vis.Network(container, data, layouts[currentLayout]);
+
+// Add layout switcher button
+let layoutSwitcher = document.getElementById('layoutSwitcher');
+if (!layoutSwitcher) {
+  layoutSwitcher = document.createElement('div');
+  layoutSwitcher.id = 'layoutSwitcher';
+  layoutSwitcher.style.margin = '10px 0';
+  layoutSwitcher.innerHTML = `
+    <button id="switchPhysics">Physics</button>
+    <button id="switchHierUD">Hierarchical UD</button>
+    <button id="switchHierLR">Hierarchical LR</button>
+  `;
+  document.getElementById('topbar').prepend(layoutSwitcher);
+}
+
+document.getElementById('switchPhysics').onclick = function() {
+  currentLayout = 'physics';
+  // Remove hierarchical layout forcibly
+  network.setOptions({layout: {hierarchical: false}});
+  network.setOptions({layout: {}});
+  network.setOptions(layouts.physics);
+  network.stabilize();
+};
+document.getElementById('switchHierUD').onclick = function() {
+  currentLayout = 'hierarchicalUD';
+  network.setOptions(layouts.hierarchicalUD);
+};
+document.getElementById('switchHierLR').onclick = function() {
+  currentLayout = 'hierarchicalLR';
+  network.setOptions(layouts.hierarchicalLR);
+};
 
 // ---------- Helpers ----------
 function nextId(){
@@ -117,39 +205,98 @@ function addOrGetPaper({title, authors, notes}){
   return node;
 }
 
-// ---------- Node toolbar ----------
+// ---------- Node & Edge toolbar ----------
 const nodeToolbar = document.getElementById('nodeToolbar');
 let currentNodeId = null;
+let currentEdgeId = null;
 
-network.on('click', params=>{
-  if(params.nodes && params.nodes.length === 1){
+// Create edge toolbar
+let edgeToolbar = document.getElementById('edgeToolbar');
+if (!edgeToolbar) {
+  edgeToolbar = document.createElement('div');
+  edgeToolbar.id = 'edgeToolbar';
+  edgeToolbar.className = 'hidden';
+  edgeToolbar.style.position = 'absolute';
+  edgeToolbar.style.zIndex = 10;
+  edgeToolbar.innerHTML = `
+    <button id="labelEdgeBtn" title="Label edge">Label</button>
+    <button id="deleteEdgeBtn" title="Delete edge">Delete</button>
+  `;
+  document.body.appendChild(edgeToolbar);
+}
+
+network.on('click', params => {
+  if (params.nodes && params.nodes.length === 1) {
     const nodeId = params.nodes[0];
     currentNodeId = nodeId;
+    currentEdgeId = null;
     showToolbarNearNode(nodeId);
+    hideEdgeToolbar();
+  } else if (params.edges && params.edges.length === 1) {
+    const edgeId = params.edges[0];
+    currentEdgeId = edgeId;
+    currentNodeId = null;
+    showToolbarNearEdge(edgeId);
+    hideToolbar();
   } else {
     hideToolbar();
+    hideEdgeToolbar();
     currentNodeId = null;
+    currentEdgeId = null;
   }
 });
 
-function showToolbarNearNode(nodeId){
+function showToolbarNearNode(nodeId) {
   const pos = network.getPositions([nodeId])[nodeId];
-  const canvasPos = network.canvasToDOM({x: pos.x, y: pos.y});
+  const canvasPos = network.canvasToDOM({ x: pos.x, y: pos.y });
   nodeToolbar.style.left = `${canvasPos.x + 16}px`;
   nodeToolbar.style.top = `${canvasPos.y - 10}px`;
   nodeToolbar.classList.remove('hidden');
 }
 
-function hideToolbar(){ nodeToolbar.classList.add('hidden'); }
+function showToolbarNearEdge(edgeId) {
+  const edge = edges.get(edgeId);
+  if (!edge) return;
+  // Get positions of from and to nodes, place toolbar at midpoint
+  const fromPos = network.getPositions([edge.from])[edge.from];
+  const toPos = network.getPositions([edge.to])[edge.to];
+  const midX = (fromPos.x + toPos.x) / 2;
+  const midY = (fromPos.y + toPos.y) / 2;
+  const canvasPos = network.canvasToDOM({ x: midX, y: midY });
+  edgeToolbar.style.left = `${canvasPos.x + 16}px`;
+  edgeToolbar.style.top = `${canvasPos.y - 10}px`;
+  edgeToolbar.classList.remove('hidden');
+}
 
-document.addEventListener('click', (e)=>{
-  // Hide toolbar when clicking outside network or buttons (handled above separately)
-  const isToolbar = nodeToolbar.contains(e.target);
+function hideToolbar() { nodeToolbar.classList.add('hidden'); }
+function hideEdgeToolbar() { edgeToolbar.classList.add('hidden'); }
+
+document.addEventListener('click', (e) => {
+  // Hide toolbars when clicking outside network or buttons
+  const isNodeToolbar = nodeToolbar.contains(e.target);
+  const isEdgeToolbar = edgeToolbar.contains(e.target);
   const isAdd = e.target === addPaperBtn;
-  if(!isToolbar && !isAdd){
-    // if click inside network, the network's own click handler will set/hide toolbar
-    // but clicks elsewhere should hide it
-    if(!e.target.closest('#network')) hideToolbar();
+  if (!isNodeToolbar && !isEdgeToolbar && !isAdd) {
+    if (!e.target.closest('#network')) {
+      hideToolbar();
+      hideEdgeToolbar();
+    }
+  }
+});
+
+// Edge toolbar actions
+document.getElementById('labelEdgeBtn').addEventListener('click', () => {
+  if (!currentEdgeId) return;
+  const label = prompt('Edge label:');
+  edges.update({ id: currentEdgeId, label: label || '' });
+  hideEdgeToolbar();
+});
+document.getElementById('deleteEdgeBtn').addEventListener('click', () => {
+  if (!currentEdgeId) return;
+  if (confirm('Delete this edge?')) {
+    edges.remove(currentEdgeId);
+    hideEdgeToolbar();
+    saveToStorage();
   }
 });
 
