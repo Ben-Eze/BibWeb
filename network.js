@@ -178,11 +178,14 @@ export function setupNetwork() {
 		lastSelectedNodes = [];
 	});
 
-	function addOrGetPaper({ title, authors, notes }) {
+	function addOrGetPaper({ title, nickname, authors, doi, link, notes }) {
 		// Remove HTML tags
 		const stripHtmlTags = str => (!str ? '' : str.replace(/<[^>]*>/g, ''));
 		title = stripHtmlTags(title);
-		authors = stripHtmlTags(authors);
+		nickname = stripHtmlTags(nickname || '');
+		authors = stripHtmlTags(authors || '');
+		doi = stripHtmlTags(doi || '');
+		link = stripHtmlTags(link || '');
 		// Find node by title
 		const findNodeByTitle = title => {
 			if (!title) return null;
@@ -194,7 +197,10 @@ export function setupNetwork() {
 		const existing = findNodeByTitle(title);
 		if (existing) {
 			// optionally update metadata
+			if (nickname) existing.nickname = nickname;
 			if (authors) existing.authors = authors;
+			if (doi) existing.doi = doi;
+			if (link) existing.link = link;
 			if (notes) existing.notes = notes;
 			const escapeHtml = s => (!s ? '' : s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
 			const formatLabel = node => {
@@ -217,7 +223,17 @@ export function setupNetwork() {
 			return `${escapeHtml(node.title)}${authors}`;
 		};
 		const id = nextId();
-		const node = { id, title: title, authors: authors, notes, label: formatLabel({ title, authors }), shape: 'box' };
+		const node = { 
+			id, 
+			title: title, 
+			nickname: nickname,
+			authors: authors, 
+			doi: doi,
+			link: link,
+			notes, 
+			label: formatLabel({ title, authors }), 
+			shape: 'box' 
+		};
 		nodes.add(node);
 		network.focus(id, { scale: 1.2, animation: true });
 		return node;

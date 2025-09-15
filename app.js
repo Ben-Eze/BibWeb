@@ -2,6 +2,7 @@
 import { setupNetwork } from './network.js';
 import { setupDocumentToolbar } from './toolbar.js';
 import { loadFromStorage, saveToStorage } from './storage.js';
+import { setupPaperForm } from './paperForm.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   const { network, nodes, edges } = setupNetwork();
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const all = nodes.get();
     if (all && all.length) nodes.update(all.map(n => ({ id: n.id, label: '' })));
   }
+  setupPaperForm();
   setupDocumentToolbar(network, nodes, edges);
   network.fit();
 });

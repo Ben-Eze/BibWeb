@@ -82,46 +82,95 @@ export function setupNodeOverlays(network, nodes, edges) {
     addFloatBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const currentNodeId = node.id;
-      const title = prompt('Referenced paper title (required):');
-      if (!title || !title.trim()) return;
-      const stripHtmlTags = str => (!str ? '' : str.replace(/<[^>]*>/g, ''));
-      const findNodeByTitle = t => {
-        if (!t) return null;
-        const tt = t.trim().toLowerCase();
-        if (!tt) return null;
-        const found = nodes.get().find(n => (n.title || '').trim().toLowerCase() === tt);
-        return found || null;
-      };
-      let target;
-      const existing = findNodeByTitle(title);
-      if (existing) {
-        target = existing;
+      
+      if (window._showPaperForm) {
+        window._showPaperForm('add', {}, (formData) => {
+          const stripHtmlTags = str => (!str ? '' : str.replace(/<[^>]*>/g, ''));
+          const findNodeByTitle = t => {
+            if (!t) return null;
+            const tt = t.trim().toLowerCase();
+            if (!tt) return null;
+            const found = nodes.get().find(n => (n.title || '').trim().toLowerCase() === tt);
+            return found || null;
+          };
+          
+          let target;
+          const existing = findNodeByTitle(formData.title);
+          if (existing) {
+            target = existing;
+          } else {
+            const nextId = () => {
+              let all = nodes.getIds();
+              let id = 1;
+              while (all.includes(id)) id++;
+              return id;
+            };
+            target = {
+              id: nextId(),
+              title: formData.title,
+              nickname: formData.nickname,
+              authors: formData.authors,
+              doi: formData.doi,
+              link: formData.link,
+              label: '',
+              shape: 'box'
+            };
+            nodes.add(target);
+            network.focus(target.id, { scale: 1.2, animation: true });
+          }
+          
+          // create directed edge from current -> target unless exists
+          const existsEdge = edges.get().find(e => e.from === node.id && e.to === target.id);
+          if (!existsEdge) {
+            edges.add({ from: node.id, to: target.id });
+          } else {
+            alert('This reference already exists.');
+          }
+          if (typeof window._saveToStorage === 'function') window._saveToStorage();
+        });
       } else {
-        const authors = prompt('Authors for referenced paper (optional):') || '';
-        const nextId = () => {
-          let all = nodes.getIds();
-          let id = 1;
-          while (all.includes(id)) id++;
-          return id;
+        // Fallback to old prompt method
+        const title = prompt('Referenced paper title (required):');
+        if (!title || !title.trim()) return;
+        const stripHtmlTags = str => (!str ? '' : str.replace(/<[^>]*>/g, ''));
+        const findNodeByTitle = t => {
+          if (!t) return null;
+          const tt = t.trim().toLowerCase();
+          if (!tt) return null;
+          const found = nodes.get().find(n => (n.title || '').trim().toLowerCase() === tt);
+          return found || null;
         };
-        target = {
-          id: nextId(),
-          title: stripHtmlTags(title.trim()),
-          authors: stripHtmlTags(authors.trim()),
-          label: '',
-          shape: 'box'
-        };
-        nodes.add(target);
-        network.focus(target.id, { scale: 1.2, animation: true });
+        let target;
+        const existing = findNodeByTitle(title);
+        if (existing) {
+          target = existing;
+        } else {
+          const authors = prompt('Authors for referenced paper (optional):') || '';
+          const nextId = () => {
+            let all = nodes.getIds();
+            let id = 1;
+            while (all.includes(id)) id++;
+            return id;
+          };
+          target = {
+            id: nextId(),
+            title: stripHtmlTags(title.trim()),
+            authors: stripHtmlTags(authors.trim()),
+            label: '',
+            shape: 'box'
+          };
+          nodes.add(target);
+          network.focus(target.id, { scale: 1.2, animation: true });
+        }
+        // create directed edge from current -> target unless exists
+        const existsEdge = edges.get().find(e => e.from === node.id && e.to === target.id);
+        if (!existsEdge) {
+          edges.add({ from: node.id, to: target.id });
+        } else {
+          alert('This reference already exists.');
+        }
+        if (typeof window._saveToStorage === 'function') window._saveToStorage();
       }
-      // create directed edge from current -> target unless exists
-      const existsEdge = edges.get().find(e => e.from === node.id && e.to === target.id);
-      if (!existsEdge) {
-        edges.add({ from: node.id, to: target.id });
-      } else {
-        alert('This reference already exists.');
-      }
-      if (typeof window._saveToStorage === 'function') window._saveToStorage();
     });
 
     const card = el.querySelector('.node-overlay__card');
@@ -131,29 +180,61 @@ export function setupNodeOverlays(network, nodes, edges) {
     toolbar.querySelector('.btn-edit').addEventListener('click', (e) => {
       e.stopPropagation();
       const n = nodes.get(node.id);
-      const title = prompt('Edit title:', n.title || '');
-      if (!title || !title.trim()) return;
-      const authors = prompt('Edit authors:', n.authors || '') || '';
-      n.title = title.trim();
-      n.authors = authors.trim();
-      n.label = '';
-      nodes.update(n);
-      // update overlay title/authors now
-      const titleEl = el.querySelector('.node-overlay__title');
-      const titleTextEl = el.querySelector('.node-overlay__titleText');
-      const authorsEl = el.querySelector('.node-overlay__authors');
-      titleEl.setAttribute('title', escapeHtml(n.title));
-      if (titleTextEl) titleTextEl.textContent = n.title || '';
-      if (authorsEl) {
-        if (n.authors) { authorsEl.textContent = n.authors; }
-        else { authorsEl.remove(); }
-      } else if (n.authors) {
-        const a = document.createElement('div');
-        a.className = 'node-overlay__authors';
-        a.textContent = n.authors;
-        titleEl.appendChild(a);
+      
+      if (window._showPaperForm) {
+        window._showPaperForm('edit', n, (formData) => {
+          n.title = formData.title;
+          n.nickname = formData.nickname;
+          n.authors = formData.authors;
+          n.doi = formData.doi;
+          n.link = formData.link;
+          n.label = '';
+          nodes.update(n);
+          
+          // update overlay title/authors now
+          const titleEl = el.querySelector('.node-overlay__title');
+          const titleTextEl = el.querySelector('.node-overlay__titleText');
+          const authorsEl = el.querySelector('.node-overlay__authors');
+          titleEl.setAttribute('title', escapeHtml(n.title));
+          if (titleTextEl) titleTextEl.textContent = n.title || '';
+          if (authorsEl) {
+            if (n.authors) { authorsEl.textContent = n.authors; }
+            else { authorsEl.remove(); }
+          } else if (n.authors) {
+            const a = document.createElement('div');
+            a.className = 'node-overlay__authors';
+            a.textContent = n.authors;
+            titleEl.appendChild(a);
+          }
+          if (typeof window._saveToStorage === 'function') window._saveToStorage();
+        });
+      } else {
+        // Fallback to old prompt method
+        const title = prompt('Edit title:', n.title || '');
+        if (!title || !title.trim()) return;
+        const authors = prompt('Edit authors:', n.authors || '') || '';
+        n.title = title.trim();
+        n.authors = authors.trim();
+        n.label = '';
+        nodes.update(n);
+        
+        // update overlay title/authors now
+        const titleEl = el.querySelector('.node-overlay__title');
+        const titleTextEl = el.querySelector('.node-overlay__titleText');
+        const authorsEl = el.querySelector('.node-overlay__authors');
+        titleEl.setAttribute('title', escapeHtml(n.title));
+        if (titleTextEl) titleTextEl.textContent = n.title || '';
+        if (authorsEl) {
+          if (n.authors) { authorsEl.textContent = n.authors; }
+          else { authorsEl.remove(); }
+        } else if (n.authors) {
+          const a = document.createElement('div');
+          a.className = 'node-overlay__authors';
+          a.textContent = n.authors;
+          titleEl.appendChild(a);
+        }
+        if (typeof window._saveToStorage === 'function') window._saveToStorage();
       }
-      if (typeof window._saveToStorage === 'function') window._saveToStorage();
     });
     toolbar.querySelector('.btn-del').addEventListener('click', (e) => {
       e.stopPropagation();

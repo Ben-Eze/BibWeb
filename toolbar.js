@@ -100,12 +100,19 @@ export function setupDocumentToolbar(network, nodes, edges) {
   //   };
 
   document.getElementById('addPaperBtn').addEventListener('click', () => {
-    const title = prompt('Paper title (required):');
-    if (!title || !title.trim()) return;
-    const authors = prompt('Authors (optional):') || '';
-    // addOrGetPaper should be imported from network.js
-    window._addOrGetPaper({ title: title.trim(), authors: authors.trim() });
-    window._saveToStorage();
+    if (window._showPaperForm) {
+      window._showPaperForm('add', {}, (formData) => {
+        window._addOrGetPaper(formData);
+        window._saveToStorage();
+      });
+    } else {
+      // Fallback to old prompt method
+      const title = prompt('Paper title (required):');
+      if (!title || !title.trim()) return;
+      const authors = prompt('Authors (optional):') || '';
+      window._addOrGetPaper({ title: title.trim(), authors: authors.trim() });
+      window._saveToStorage();
+    }
   });
 
   document.getElementById('lockAllBtn').addEventListener('click', () => {

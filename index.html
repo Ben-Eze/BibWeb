@@ -30,6 +30,43 @@
     <div class="edges"></div>
     <div class="nodes"></div>
   </div>
+  
+  <!-- Paper Form Modal -->
+  <div id="paperFormModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Add Paper</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="paperForm">
+        <div class="form-group">
+          <label for="paperTitle">Title *</label>
+          <input type="text" id="paperTitle" required>
+        </div>
+        <div class="form-group">
+          <label for="paperNickname">Nickname</label>
+          <input type="text" id="paperNickname">
+        </div>
+        <div class="form-group">
+          <label for="paperAuthor">Author</label>
+          <input type="text" id="paperAuthor">
+        </div>
+        <div class="form-group">
+          <label for="paperDOI">DOI</label>
+          <input type="text" id="paperDOI" placeholder="10.1000/182">
+        </div>
+        <div class="form-group">
+          <label for="paperLink">Link (PDF or YouTube)</label>
+          <input type="url" id="paperLink" placeholder="https://...">
+        </div>
+        <div class="form-buttons">
+          <button type="button" class="btn-cancel">Cancel</button>
+          <button type="submit" class="btn-save">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
   <!-- Node toolbars will be rendered inside .nodes -->
   <!-- Edge toolbars will be rendered inside .edges -->
   <script type="module" src="app.js"></script>
