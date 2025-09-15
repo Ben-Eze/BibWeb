@@ -311,6 +311,23 @@ export function setupNodeOverlays(network, nodes, edges) {
     }
   });
 
+  function updateLockStates() {
+    // Force update all lock button states
+    overlayMap.forEach((el, id) => {
+      const n = nodes.get(id);
+      const lockFloatBtn = el.querySelector('.node-overlay__btnLockFloating');
+      if (n && lockFloatBtn) {
+        const locked = n.physics === false;
+        lockFloatBtn.textContent = locked ? '🔒' : '🔓';
+        lockFloatBtn.title = locked ? 'Unlock (allow physics to move this node)' : "Lock position (physics won't move this node)";
+        if (locked) el.classList.add('is-locked'); else el.classList.remove('is-locked');
+      }
+    });
+  }
+
+  // Expose for toolbar to call after bulk operations
+  window._updateLockStates = updateLockStates;
+
   function escapeHtml(s) {
     return (!s ? '' : s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'));
   }

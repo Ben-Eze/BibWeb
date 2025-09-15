@@ -108,6 +108,24 @@ export function setupDocumentToolbar(network, nodes, edges) {
     window._saveToStorage();
   });
 
+  document.getElementById('lockAllBtn').addEventListener('click', () => {
+    const allNodes = nodes.get();
+    const updates = allNodes.map(node => ({ id: node.id, physics: false }));
+    nodes.update(updates);
+    // Force update lock button appearances
+    if (window._updateLockStates) window._updateLockStates();
+    window._saveToStorage();
+  });
+
+  document.getElementById('unlockAllBtn').addEventListener('click', () => {
+    const allNodes = nodes.get();
+    const updates = allNodes.map(node => ({ id: node.id, physics: true }));
+    nodes.update(updates);
+    // Force update lock button appearances
+    if (window._updateLockStates) window._updateLockStates();
+    window._saveToStorage();
+  });
+
   document.getElementById('exportBtn').addEventListener('click', () => {
     const data = { nodes: nodes.get(), edges: edges.get() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
