@@ -209,6 +209,12 @@ export function setupNodeOverlays(network, nodes, edges) {
   const oh = el.offsetHeight || height;
   el.style.left = `${Math.round(centerDom.x - ow / 2)}px`;
   el.style.top = `${Math.round(centerDom.y - oh / 2)}px`;
+
+  // Set z-index so nodes higher up the hierarchy (smaller y) draw above lower ones.
+  // Selected nodes always on top.
+  const isSelected = el.classList.contains('is-selected');
+  const z = isSelected ? 2000000000 : Math.round(1000000 - center.y);
+  el.style.zIndex = String(z);
     });
   }
 

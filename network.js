@@ -47,7 +47,13 @@ export function setupNetwork() {
 			margin: 10,
 			widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
 			heightConstraint: { minimum: DEFAULT_HEIGHT },
-			font: { multi: 'html' }
+			font: { multi: 'html' },
+			// Make canvas node visuals transparent; overlays will render the card on top
+			color: {
+				background: 'rgba(0,0,0,0)',
+				highlight: { background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)' },
+				hover: { background: 'rgba(0,0,0,0)', border: 'rgba(0,0,0,0)' }
+			}
 		},
 		edges: {
 			arrows: { to: { enabled: true, scaleFactor: 1 } },
