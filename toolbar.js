@@ -2,6 +2,14 @@
 // Exports: setupDocumentToolbar(network, nodes, edges)
 
 export function setupDocumentToolbar(network, nodes, edges) {
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (confirm('Clear the entire graph? This cannot be undone.')) {
+      nodes.clear();
+      edges.clear();
+      window._saveToStorage();
+      network.fit();
+    }
+  });
   document.getElementById('switchPhysics').onclick = function() {
     // Get current positions
     const currentPositions = network.getPositions();
