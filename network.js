@@ -114,6 +114,53 @@ export function setupNetwork() {
 				}
 			});
 		});
+
+		// After the size updates have been drawn, zoom and center selection to ~70% of viewport
+		const focusSelection = () => {
+			try {
+				if (!params.nodes || !params.nodes.length) return;
+				const ids = params.nodes;
+				// Compute union bounding box in canvas coords
+				let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
+				ids.forEach(id => {
+					const bb = network.getBoundingBox(id);
+					if (!bb) return;
+					left = Math.min(left, bb.left);
+					right = Math.max(right, bb.right);
+					top = Math.min(top, bb.top);
+					bottom = Math.max(bottom, bb.bottom);
+				});
+				if (!isFinite(left) || !isFinite(right) || !isFinite(top) || !isFinite(bottom)) return;
+
+				const width = Math.max(1, right - left);
+				const height = Math.max(1, bottom - top);
+				const centerX = (left + right) / 2;
+				const centerY = (top + bottom) / 2;
+				const cont = network.body && network.body.container ? network.body.container : document.getElementById('network');
+				const cw = (cont && cont.clientWidth) ? cont.clientWidth : window.innerWidth || 800;
+				const ch = (cont && cont.clientHeight) ? cont.clientHeight : window.innerHeight || 600;
+				// target up to 70% of viewport in both directions
+				const targetRatio = 0.7;
+				let targetScale = Math.min((targetRatio * cw) / width, (targetRatio * ch) / height);
+				// clamp scale to reasonable bounds
+				targetScale = Math.max(0.2, Math.min(3, targetScale));
+
+				network.moveTo({
+					position: { x: centerX, y: centerY },
+					scale: targetScale,
+					animation: { duration: 500, easingFunction: 'easeInOutQuad' }
+				});
+			} catch { /* no-op */ }
+		};
+		if (typeof network.once === 'function') {
+			network.once('afterDrawing', focusSelection);
+		} else if (typeof network.on === 'function' && typeof network.off === 'function') {
+			const handler = () => { try { focusSelection(); } finally { network.off('afterDrawing', handler); } };
+			network.on('afterDrawing', handler);
+		} else {
+			// fallback: queue microtask
+			setTimeout(focusSelection, 0);
+		}
 	});
 	network.on('deselectNode', function (params) {
 		// restore previous nodes to default size
