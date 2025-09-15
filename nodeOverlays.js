@@ -34,9 +34,10 @@ export function setupNodeOverlays(network, nodes, edges) {
           </div>
           <div class="node-overlay__spacer"></div>
           <div class="node-overlay__toolbar">
-          <button class="btn-add" title="Add referenced paper">Add reference</button>
-          <button class="btn-edit" title="Edit node">Edit</button>
-          <button class="btn-del" title="Delete node">Delete</button>
+          <button class="btn-lock" title="Toggle lock position">🔒</button>
+          <button class="btn-add" title="Add referenced paper">➕</button>
+          <button class="btn-edit" title="Edit node">✏️</button>
+          <button class="btn-del" title="Delete node">🗑️</button>
         </div>
       </div>
     `;
@@ -47,6 +48,21 @@ export function setupNodeOverlays(network, nodes, edges) {
   // visibility is primarily controlled by CSS class .is-selected
 
     // Wire actions
+    const lockBtn = toolbar.querySelector('.btn-lock');
+    const setLockButtonState = (locked) => {
+      lockBtn.textContent = locked ? '🔓' : '🔒';
+      lockBtn.title = locked ? 'Unlock (allow physics to move this node)' : 'Lock position (physics won’t move this node)';
+    };
+    setLockButtonState(node.physics === false);
+    lockBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const n = nodes.get(node.id);
+      const isLocked = n && n.physics === false;
+      // physics:false => excluded from physics (user can still drag and it stays)
+      nodes.update({ id: node.id, physics: isLocked ? true : false });
+      setLockButtonState(!isLocked);
+      if (typeof window._saveToStorage === 'function') window._saveToStorage();
+    });
     toolbar.querySelector('.btn-add').addEventListener('click', (e) => {
       e.stopPropagation();
       const currentNodeId = node.id;
@@ -196,6 +212,7 @@ export function setupNodeOverlays(network, nodes, edges) {
         const titleEl = el.querySelector('.node-overlay__title');
         const titleTextEl = el.querySelector('.node-overlay__titleText');
         const authorsEl = el.querySelector('.node-overlay__authors');
+        const lockBtn = el.querySelector('.btn-lock');
         if (titleEl && n) {
           titleEl.setAttribute('title', escapeHtml(n.title || ''));
           if (titleTextEl) titleTextEl.textContent = n.title || '';
@@ -207,6 +224,11 @@ export function setupNodeOverlays(network, nodes, edges) {
             a.className = 'node-overlay__authors';
             a.textContent = n.authors;
             titleEl.appendChild(a);
+          }
+          if (lockBtn) {
+            const locked = n.physics === false;
+            lockBtn.textContent = locked ? '🔓' : '🔒';
+            lockBtn.title = locked ? 'Unlock (allow physics to move this node)' : 'Lock position (physics won’t move this node)';
           }
         }
       });

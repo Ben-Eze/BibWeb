@@ -33,9 +33,10 @@ export function setupNetwork() {
 	const options = {
 		physics: {
 			enabled: true,
+			solver: 'forceAtlas2Based',
 			stabilization: { iterations: 200 },
-			repulsion: {
-				nodeDistance: DEFAULT_NODE_DISTANCE,
+			forceAtlas2Based: {
+				avoidOverlap: 1,
 				springLength: DEFAULT_SPRING_LENGTH,
 				springConstant: DEFAULT_SPRING_CONSTANT,
 			}
@@ -63,12 +64,13 @@ export function setupNetwork() {
 	// without toggling the current layout mode.
 	function applySpacing(selected) {
 		if (network.__layoutMode === 'physics') {
-			// physics repulsion / spring tuning
+			// physics tuning with overlap avoidance based on node size
 			network.setOptions({
 				physics: {
 					enabled: true,
-					repulsion: {
-						nodeDistance: selected ? SELECTED_NODE_DISTANCE : DEFAULT_NODE_DISTANCE,
+					solver: 'forceAtlas2Based',
+					forceAtlas2Based: {
+						avoidOverlap: 1,
 						springLength: selected ? SELECTED_SPRING_LENGTH : DEFAULT_SPRING_LENGTH,
 						springConstant: selected ? SELECTED_SPRING_CONSTANT : DEFAULT_SPRING_CONSTANT
 					}
