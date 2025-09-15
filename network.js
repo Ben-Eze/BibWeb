@@ -2,6 +2,7 @@
 // Exports: setupNetwork()
 import { setupNodeToolbar } from './nodeToolbar.js';
 import { setupEdgeToolbar } from './edgeToolbar.js';
+import { setupNodeOverlays } from './nodeOverlays.js';
 
 const SELECTED_WIDTH = 400;
 const SELECTED_HEIGHT = Math.round(SELECTED_WIDTH * 1.414); // A4 aspect ratio
@@ -195,6 +196,55 @@ export function setupNetwork() {
 
 	setupNodeToolbar(network, nodes, edges);
 	setupEdgeToolbar(network, nodes, edges);
+	// Replace labels with overlays
+	nodes.update(nodes.get().map(n => ({ id: n.id, label: '' })));
+	setupNodeOverlays(network, nodes, edges);
+
+	// Enforce default visuals for any nodes as they are added (including during loadFromStorage)
+	nodes.on('add', (e) => {
+		if (e && Array.isArray(e.items) && e.items.length) {
+			const updates = e.items.map((id) => ({
+				id,
+				widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
+				heightConstraint: { minimum: DEFAULT_HEIGHT },
+				font: { size: 16 },
+			}));
+			nodes.update(updates);
+		}
+	});
+
+	// Ensure starting state: default spacing, and no selections (toolbar hidden)
+	try { applySpacing(false); } catch {}
+	if (typeof network.unselectAll === 'function') network.unselectAll();
+
+		// One-time initial reset after first render to guarantee defaults
+		const initialReset = () => {
+			try {
+				// Reset all nodes to default constraints and font
+				const nodeUpdates = nodes.get().map(n => ({
+					id: n.id,
+					widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
+					heightConstraint: { minimum: DEFAULT_HEIGHT },
+					font: { size: 16 }
+				}));
+				if (nodeUpdates.length) nodes.update(nodeUpdates);
+
+				// Reset all edges to default length
+				const edgeUpdates = edges.get().map(e => ({ id: e.id, length: DEFAULT_LENGTH }));
+				if (edgeUpdates.length) edges.update(edgeUpdates);
+
+				// Apply default spacing and unselect
+				try { applySpacing(false); } catch {}
+				if (typeof network.unselectAll === 'function') network.unselectAll();
+
+				// Ensure overlay toolbars are hidden
+				const cont = document.getElementById('nodeOverlayContainer');
+				if (cont) cont.querySelectorAll('.node-overlay.is-selected').forEach(el => el.classList.remove('is-selected'));
+			} finally {
+				if (typeof network.off === 'function') network.off('afterDrawing', initialReset);
+			}
+		};
+		if (typeof network.on === 'function') network.on('afterDrawing', initialReset);
 
 	return { network, nodes, edges };
 }
