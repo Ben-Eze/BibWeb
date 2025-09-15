@@ -31,6 +31,11 @@ export function setupDocumentToolbar(network, nodes, edges) {
     if (confirm('Clear the entire graph? This cannot be undone.')) {
       nodes.clear();
       edges.clear();
+      // Remove overlay DOMs
+      const container = document.getElementById('nodeOverlayContainer');
+      if (container) {
+        while (container.firstChild) container.removeChild(container.firstChild);
+      }
       window._saveToStorage();
       network.fit();
     }
