@@ -100,14 +100,11 @@ export function setupNetwork() {
 	// Expose spacing helper so toolbar can apply immediately on layout switch
 	window._applySpacing = (selected = false) => applySpacing(selected);
 	let lastSelectedNodes = [];
-	let spacingSelected = false;
+	
 	network.on('selectNode', function (params) {
 		lastSelectedNodes = params.nodes.slice();
-		// increase global spacing to make room for expanded node(s) only on first selection
-		if (!spacingSelected) {
-			applySpacing(true);
-			spacingSelected = true;
-		}
+		
+		// Resize selected nodes but don't affect physics
 		params.nodes.forEach(nodeId => {
 			nodes.update({
 				id: nodeId,
@@ -115,15 +112,9 @@ export function setupNetwork() {
 				heightConstraint: { minimum: SELECTED_HEIGHT },
 				font: { size: 16 }
 			});
-			// Update connected edges to be longer
-			edges.get().forEach(edge => {
-				if (edge.from === nodeId || edge.to === nodeId) {
-					edges.update({ id: edge.id, length: SELECTED_LENGTH });
-				}
-			});
 		});
 
-		// After the size updates have been drawn, zoom and center selection to ~70% of viewport
+		// After the node is resized, zoom and center selection to ~70% of viewport
 		const focusSelection = () => {
 			try {
 				if (!params.nodes || !params.nodes.length) return;
@@ -171,7 +162,7 @@ export function setupNetwork() {
 		}
 	});
 	network.on('deselectNode', function (params) {
-		// restore previous nodes to default size
+		// Restore previous nodes to default size
 		lastSelectedNodes.forEach(nodeId => {
 			nodes.update({
 				id: nodeId,
@@ -179,18 +170,7 @@ export function setupNetwork() {
 				heightConstraint: { minimum: DEFAULT_HEIGHT },
 				font: { size: 16 }
 			});
-			// Restore connected edges to default length
-			edges.get().forEach(edge => {
-				if (edge.from === nodeId || edge.to === nodeId) {
-					edges.update({ id: edge.id, length: DEFAULT_LENGTH });
-				}
-			});
 		});
-		// restore global spacing only if we previously expanded it
-		if (spacingSelected && lastSelectedNodes.length) {
-			applySpacing(false);
-			spacingSelected = false;
-		}
 		lastSelectedNodes = [];
 	});
 
@@ -281,10 +261,6 @@ export function setupNetwork() {
 					font: { size: 16 }
 				}));
 				if (nodeUpdates.length) nodes.update(nodeUpdates);
-
-				// Reset all edges to default length
-				const edgeUpdates = edges.get().map(e => ({ id: e.id, length: DEFAULT_LENGTH }));
-				if (edgeUpdates.length) edges.update(edgeUpdates);
 
 				// Apply default spacing and unselect
 				try { applySpacing(false); } catch {}
