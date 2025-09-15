@@ -10,6 +10,15 @@ const DEFAULT_HEIGHT = 30; // vis-network default
 const DEFAULT_LENGTH = 400;
 const SELECTED_LENGTH = 600;
 
+// Notes editing mode dimensions
+const NOTES_MODE = {
+    WIDTH: 1400,
+    HEIGHT: Math.round(SELECTED_WIDTH * 1.414), // Landscape aspect ratio (2:1)
+    SCREEN_WIDTH_PERCENT: 90,
+    SCREEN_HEIGHT_VH: 80,
+    TOP_OFFSET: 80
+};
+
 // Spacing / physics tuning constants (used for both physics and hierarchical modes)
 const DEFAULT_NODE_DISTANCE = 220;
 const DEFAULT_SPRING_LENGTH = 110;
@@ -298,5 +307,5 @@ export function setupNetwork() {
 		};
 		if (typeof network.on === 'function') network.on('afterDrawing', initialReset);
 
-	return { network, nodes, edges };
+	return { network, nodes, edges, NOTES_MODE };
 }

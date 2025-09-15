@@ -1,6 +1,9 @@
 // Per-node floating overlays that mirror node size/position and host title + toolbar
+import { NotesEditor } from './notesEditor.js';
+
 export function setupNodeOverlays(network, nodes, edges) {
   const overlayMap = new Map(); // nodeId -> HTMLElement
+  const notesEditor = new NotesEditor();
 
   // Container inside the network element to ensure correct coordinate space
   const host = (network && network.body && network.body.container) ? network.body.container : document.getElementById('network');
@@ -83,7 +86,7 @@ export function setupNodeOverlays(network, nodes, edges) {
           <div class="node-overlay__spacer">
             <div class="node-overlay__content">
               <div class="viewer-container">${viewerContent}</div>
-              <div>notes</div>
+              <div class="notes-section"></div>
             </div>
           </div>
           <div class="node-overlay__toolbar">
@@ -92,6 +95,11 @@ export function setupNodeOverlays(network, nodes, edges) {
         </div>
       </div>
     `;
+    
+    // Add notes editor to the notes section
+    const notesSection = el.querySelector('.notes-section');
+    const notesContainer = notesEditor.createNotesContainer(node.id, node.notes || '', 'preview');
+    notesSection.appendChild(notesContainer);
     // Toolbar needs pointer events
   const toolbar = el.querySelector('.node-overlay__toolbar');
   toolbar.style.pointerEvents = 'auto';
@@ -160,6 +168,7 @@ export function setupNodeOverlays(network, nodes, edges) {
               authors: formData.authors,
               doi: formData.doi,
               link: formData.link,
+              notes: formData.notes,
               type: formData.type,
               label: '',
               shape: 'box'
@@ -237,6 +246,7 @@ export function setupNodeOverlays(network, nodes, edges) {
           n.authors = formData.authors;
           n.doi = formData.doi;
           n.link = formData.link;
+          n.notes = formData.notes;
           n.type = formData.type;
           n.label = '';
           nodes.update(n);
@@ -263,6 +273,17 @@ export function setupNodeOverlays(network, nodes, edges) {
           if (viewerContainer) {
             viewerContainer.innerHTML = createViewerContent(n);
           }
+          
+          // Update notes display
+          const notesSection = el.querySelector('.notes-section');
+          if (notesSection) {
+            const isNotesMode = el.classList.contains('notes-mode');
+            const mode = isNotesMode ? 'edit' : 'preview';
+            notesSection.innerHTML = '';
+            const notesContainer = notesEditor.createNotesContainer(n.id, n.notes || '', mode);
+            notesSection.appendChild(notesContainer);
+          }
+          
           if (typeof window._saveToStorage === 'function') window._saveToStorage();
         });
       } else {
@@ -313,6 +334,8 @@ export function setupNodeOverlays(network, nodes, edges) {
     const el = overlayMap.get(nodeId);
     if (el && el.parentElement) el.parentElement.removeChild(el);
     overlayMap.delete(nodeId);
+    // Clean up notes editor
+    notesEditor.cleanup(nodeId);
   }
 
   function ensureOverlaysForAllNodes() {
@@ -465,6 +488,94 @@ export function setupNodeOverlays(network, nodes, edges) {
 
   // Expose for toolbar to call after bulk operations
   window._updateLockStates = updateLockStates;
+
+  // Notes data management functions
+  window._updateNodeNotes = (nodeId, notes) => {
+    const node = nodes.get(nodeId);
+    if (node) {
+      node.notes = notes;
+      nodes.update(node);
+      if (typeof window._saveToStorage === 'function') window._saveToStorage();
+    }
+  };
+
+  window._getNodeNotes = (nodeId) => {
+    const node = nodes.get(nodeId);
+    return node ? (node.notes || '') : '';
+  };
+
+  // Mode switching functions
+  window._switchToNotesMode = (nodeId) => {
+    const el = overlayMap.get(nodeId);
+    if (el) {
+      // Resize the node to landscape dimensions for notes mode
+      const notesMode = window._NOTES_MODE || { WIDTH: 600, HEIGHT: 300 };
+      nodes.update({
+        id: nodeId,
+        widthConstraint: { minimum: notesMode.WIDTH, maximum: notesMode.WIDTH },
+        heightConstraint: { minimum: notesMode.HEIGHT },
+        font: { size: 16 }
+      });
+      
+      el.classList.add('notes-mode');
+      
+      // Add close button
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'notes-close-btn';
+      closeBtn.innerHTML = '✕';
+      closeBtn.title = 'Close notes editor';
+      closeBtn.style.pointerEvents = 'auto';
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        window._switchToPreviewMode(nodeId);
+      });
+      
+      const card = el.querySelector('.node-overlay__card');
+      card.appendChild(closeBtn);
+      
+      // Recreate notes container in editing mode
+      const notesSection = el.querySelector('.notes-section');
+      const currentNotes = window._getNodeNotes(nodeId);
+      notesSection.innerHTML = '';
+      const notesContainer = notesEditor.createNotesContainer(nodeId, currentNotes, 'edit');
+      notesSection.appendChild(notesContainer);
+      // Auto-start editing
+      setTimeout(() => {
+        notesEditor.startEditing(nodeId, notesContainer, currentNotes);
+      }, 100);
+    }
+  };
+
+  window._switchToPreviewMode = (nodeId) => {
+    const el = overlayMap.get(nodeId);
+    if (el) {
+      // Restore original selected dimensions (400x565 A4 aspect ratio)
+      nodes.update({
+        id: nodeId,
+        widthConstraint: { minimum: 400, maximum: 400 },
+        heightConstraint: { minimum: Math.round(400 * 1.414) },
+        font: { size: 16 }
+      });
+      
+      el.classList.remove('notes-mode');
+      
+      // Remove close button
+      const closeBtn = el.querySelector('.notes-close-btn');
+      if (closeBtn) {
+        closeBtn.remove();
+      }
+      
+      // Recreate notes container in preview mode
+      const notesSection = el.querySelector('.notes-section');
+      const currentNotes = window._getNodeNotes(nodeId);
+      notesSection.innerHTML = '';
+      const notesContainer = notesEditor.createNotesContainer(nodeId, currentNotes, 'preview');
+      notesSection.appendChild(notesContainer);
+      
+      // Restore normal positioning
+      updatePositions();
+    }
+  };
 
   function escapeHtml(s) {
     return (!s ? '' : s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;'));

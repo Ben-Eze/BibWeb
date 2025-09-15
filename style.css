@@ -426,7 +426,8 @@ body {
     color: #333;
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #ddd;
@@ -435,7 +436,14 @@ body {
     box-sizing: border-box;
 }
 
-.form-group input:focus {
+.form-group textarea {
+    resize: vertical;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 80px;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
     outline: none;
     border-color: #2B7CE9;
     box-shadow: 0 0 0 2px rgba(43, 124, 233, 0.1);
@@ -497,4 +505,356 @@ body {
 
 .btn-save:hover {
     background: #1e5bb8;
+}
+
+/* Notes Editor Styles */
+.notes-container {
+    position: relative;
+    min-height: 40px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px;
+    margin: 4px 0;
+}
+
+/* Compact preview mode - just show rendered notes */
+.notes-container.preview-mode {
+    padding: 4px 8px;
+    min-height: 20px;
+}
+
+.notes-container.preview-mode .notes-view {
+    font-size: 9px;
+    line-height: 1.2;
+    max-height: 40px;
+    overflow: hidden;
+    position: relative;
+}
+
+.notes-container.preview-mode .notes-view::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 10px;
+    background: linear-gradient(transparent, rgba(255, 255, 255, 0.95));
+    pointer-events: none;
+}
+
+.notes-container.preview-mode .notes-edit-btn {
+    top: 2px;
+    right: 2px;
+    padding: 1px 4px;
+    font-size: 8px;
+}
+
+/* Split editing mode */
+.node-overlay.notes-mode {
+    position: fixed !important;
+    top: 80px; /* Below main toolbar */
+    left: 5%;
+    width: 90%;
+    height: 60vh; /* Much shorter height for landscape */
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.node-overlay.notes-mode .node-overlay__card {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.node-overlay.notes-mode .node-overlay__content {
+    flex-direction: row;
+    gap: 0;
+    height: calc(100% - 80px); /* Account for title area */
+}
+
+.node-overlay.notes-mode .viewer-container {
+    flex: 1;
+    max-width: 50%;
+    border-right: 1px solid #ddd;
+}
+
+.node-overlay.notes-mode .notes-section {
+    flex: 1;
+    max-width: 50%;
+    display: flex;
+    flex-direction: column;
+}
+
+.node-overlay.notes-mode .notes-container {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    background: white;
+}
+
+.node-overlay.notes-mode .notes-edit {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.node-overlay.notes-mode .notes-editor {
+    flex: 1;
+    min-height: 200px;
+}
+
+/* Close button for notes mode */
+.node-overlay.notes-mode .notes-close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    pointer-events: auto;
+}
+
+.node-overlay.notes-mode .notes-close-btn:hover {
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Hide regular toolbar in notes mode */
+.node-overlay.notes-mode .node-overlay__toolbar {
+    display: none;
+}
+
+/* Hide floating buttons in notes mode */
+.node-overlay.notes-mode .node-overlay__btnLockFloating,
+.node-overlay.notes-mode .node-overlay__btnAddFloating {
+    display: none;
+}
+
+/* Responsive scaling for landscape notes mode */
+.node-overlay.notes-mode .node-overlay__title {
+    padding: 8px 16px; /* Reduced padding for landscape */
+    border-bottom: 1px solid #ddd;
+}
+
+.node-overlay.notes-mode .node-overlay__titleText {
+    font-size: 16px; /* Slightly smaller for landscape */
+    font-weight: bold;
+}
+
+.node-overlay.notes-mode .node-overlay__authors {
+    font-size: 12px; /* Smaller authors text */
+    margin-top: 2px;
+}
+
+.node-overlay.notes-mode .viewer-container iframe {
+    border-radius: 0;
+}
+
+.node-overlay.notes-mode .notes-view {
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 16px;
+    max-height: none;
+    overflow-y: auto;
+}
+
+.node-overlay.notes-mode .notes-controls {
+    padding: 12px 16px;
+    border-top: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+/* Toast UI Editor scaling in landscape mode */
+.node-overlay.notes-mode .toastui-editor-defaultUI {
+    border: none;
+    border-radius: 0;
+}
+
+.node-overlay.notes-mode .toastui-editor .ProseMirror {
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 16px;
+}
+
+.notes-view {
+    min-height: 30px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #333;
+}
+
+.notes-view h1, .notes-view h2, .notes-view h3 {
+    margin: 8px 0 4px 0;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.notes-view ul {
+    margin: 4px 0;
+    padding-left: 16px;
+}
+
+.notes-view li {
+    margin: 2px 0;
+}
+
+.notes-view code {
+    background: #f5f5f5;
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-family: monospace;
+    font-size: 10px;
+}
+
+.notes-placeholder {
+    color: #999;
+    font-style: italic;
+    font-size: 10px;
+}
+
+.notes-edit {
+    position: relative;
+}
+
+.notes-editor {
+    border-radius: 4px;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+}
+
+.notes-textarea {
+    width: 100%;
+    height: 120px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 11px;
+    font-family: monospace;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.notes-controls {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    padding: 8px;
+    border-top: 1px solid #ddd;
+    background: #f8f9fa;
+}
+
+.notes-save-btn, .notes-cancel-btn {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 10px;
+    pointer-events: auto;
+}
+
+.notes-save-btn {
+    background: #2B7CE9;
+    color: white;
+    border-color: #2B7CE9;
+}
+
+.notes-save-btn:hover {
+    background: #1e5bb8;
+}
+
+.notes-cancel-btn:hover {
+    background: #f5f5f5;
+}
+
+.notes-edit-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 2px 6px;
+    border: none;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    font-size: 10px;
+    pointer-events: auto;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.notes-edit-btn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Toast UI Editor customization */
+.toastui-editor-defaultUI {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+.toastui-editor-defaultUI .toastui-editor {
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1;
+}
+
+.toastui-editor-main {
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.toastui-editor-md-mode {
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1;
+}
+
+.toastui-editor-toolbar {
+    border-bottom: 1px solid #ddd;
+    padding: 4px;
+    flex-shrink: 0;
+}
+
+.toastui-editor-toolbar .item {
+    margin: 0 2px;
+}
+
+.toastui-editor .ProseMirror,
+.toastui-editor .CodeMirror {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 8px;
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1;
 }

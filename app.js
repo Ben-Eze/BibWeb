@@ -5,7 +5,7 @@ import { loadFromStorage, saveToStorage } from './storage.js';
 import { setupPaperForm } from './paperForm.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  const { network, nodes, edges } = setupNetwork();
+  const { network, nodes, edges, NOTES_MODE } = setupNetwork();
   loadFromStorage(nodes, edges);
   // Ensure labels are empty so overlays display the title/author instead of canvas labels
   if (nodes && typeof nodes.get === 'function') {
@@ -14,5 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   setupPaperForm();
   setupDocumentToolbar(network, nodes, edges);
+  // Make NOTES_MODE available globally for nodeOverlays
+  window._NOTES_MODE = NOTES_MODE;
   network.fit();
 });

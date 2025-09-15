@@ -47,6 +47,7 @@ export function setupPaperForm() {
     document.getElementById('paperAuthor').value = nodeData.authors || '';
     document.getElementById('paperDOI').value = nodeData.doi || '';
     document.getElementById('paperLink').value = nodeData.link || '';
+    document.getElementById('paperNotes').value = nodeData.notes || '';
     
     // Show modal
     modal.classList.remove('hidden');
@@ -68,6 +69,7 @@ export function setupPaperForm() {
       authors: document.getElementById('paperAuthor').value.trim(),
       doi: document.getElementById('paperDOI').value.trim(),
       link: document.getElementById('paperLink').value.trim(),
+      notes: document.getElementById('paperNotes').value.trim(),
       type: currentType
     };
     
