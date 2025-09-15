@@ -2,6 +2,31 @@
 // Exports: setupDocumentToolbar(network, nodes, edges)
 
 export function setupDocumentToolbar(network, nodes, edges) {
+  // Ensure any currently selected nodes are reset to default visuals before deselecting
+  function restoreSelectedThenUnselect() {
+    if (typeof network.getSelectedNodes === 'function') {
+      const selected = network.getSelectedNodes();
+      if (Array.isArray(selected) && selected.length) {
+        selected.forEach((nodeId) => {
+          // restore node size and font to defaults (keep in sync with network.js defaults)
+          nodes.update({
+            id: nodeId,
+            widthConstraint: { minimum: 240, maximum: 240 },
+            heightConstraint: { minimum: 30 },
+            font: { size: 16 },
+          });
+          // restore connected edge lengths
+          edges.get().forEach((edge) => {
+            if (edge.from === nodeId || edge.to === nodeId) {
+              edges.update({ id: edge.id, length: 400 });
+            }
+          });
+        });
+      }
+    }
+    if (window._applySpacing) window._applySpacing(false);
+    if (typeof network.unselectAll === 'function') network.unselectAll();
+  }
   document.getElementById('clearBtn').addEventListener('click', () => {
     if (confirm('Clear the entire graph? This cannot be undone.')) {
       nodes.clear();
@@ -11,6 +36,8 @@ export function setupDocumentToolbar(network, nodes, edges) {
     }
   });
   document.getElementById('switchPhysics').onclick = function () {
+    // Reset any selected papers first, then deselect
+    restoreSelectedThenUnselect();
     // Get current positions
     const currentPositions = network.getPositions();
     // Set node positions to current
@@ -18,37 +45,37 @@ export function setupDocumentToolbar(network, nodes, edges) {
       nodes.update({ id: Number(id), x: pos.x, y: pos.y, fixed: false });
     });
 
-    // Remove hierarchical layout forcibly
-    network.setOptions({ layout: { hierarchical: false } });
-    network.setOptions({ layout: {} });
-    network.setOptions({
-      physics: {
-        enabled: true,
-        stabilization: { iterations: 200 },
-        repulsion: {
-          nodeDistance: 220,
-          springLength: 220,
-          springConstant: 0.02,
-        }
-      }
-    });
-    network.stabilize();
+  // Remove hierarchical layout forcibly
+  network.setOptions({ layout: { hierarchical: false } });
+  network.setOptions({ layout: {} });
+  // enable physics; spacing parameters are controlled centrally in network.js
+  network.setOptions({ physics: { enabled: true } });
+  // mark mode
+  network.__layoutMode = 'physics';
+  if (network && network.stabilize) network.stabilize();
   };
   document.getElementById('switchHierUD').onclick = function () {
+    // Reset any selected papers first, then deselect
+    restoreSelectedThenUnselect();
     network.setOptions({
-      physics: true,
+    physics: { enabled: false },
       layout: {
         hierarchical: {
           direction: 'UD',
           sortMethod: 'directed',
-          nodeSpacing: 120,
-          levelSeparation: 120,
+      nodeSpacing: 120,
+      levelSeparation: 120,
           treeSpacing: 100,
           blockShifting: false,
           edgeMinimization: false,
         }
       }
     });
+  // mark mode
+  network.__layoutMode = 'hierarchical';
+  if (network.redraw) network.redraw();
+  // apply hierarchical spacing immediately (use default selection=false)
+  if (window._applySpacing) window._applySpacing(false);
   };
   //   document.getElementById('switchHierLR').onclick = function() {
   //     network.setOptions({

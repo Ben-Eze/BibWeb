@@ -4,11 +4,25 @@ import { setupNodeToolbar } from './nodeToolbar.js';
 import { setupEdgeToolbar } from './edgeToolbar.js';
 
 const SELECTED_WIDTH = 400;
-const SELECTED_HEIGHT = SELECTED_WIDTH * 1.414; // A4 aspect ratio
+const SELECTED_HEIGHT = Math.round(SELECTED_WIDTH * 1.414); // A4 aspect ratio
 const DEFAULT_WIDTH = 240;
 const DEFAULT_HEIGHT = 30; // vis-network default
 const DEFAULT_LENGTH = 400;
 const SELECTED_LENGTH = 600;
+
+// Spacing / physics tuning constants (used for both physics and hierarchical modes)
+const DEFAULT_NODE_DISTANCE = 220;
+const DEFAULT_SPRING_LENGTH = 220;
+const DEFAULT_SPRING_CONSTANT = 0.02;
+
+const SELECTED_NODE_DISTANCE = 380;
+const SELECTED_SPRING_LENGTH = 380;
+const SELECTED_SPRING_CONSTANT = 0.015; // slightly gentler spring when selected
+
+const HIER_DEFAULT_NODE_SPACING = DEFAULT_WIDTH + 40;
+const HIER_DEFAULT_LEVEL_SEPARATION = 2 * DEFAULT_HEIGHT + 60;
+const HIER_SELECTED_NODE_SPACING = SELECTED_WIDTH + 20;
+const HIER_SELECTED_LEVEL_SEPARATION = SELECTED_HEIGHT + 20;
 
 export function setupNetwork() {
 	const nodes = new vis.DataSet([]);
@@ -21,9 +35,9 @@ export function setupNetwork() {
 			enabled: true,
 			stabilization: { iterations: 200 },
 			repulsion: {
-				nodeDistance: 220,
-				springLength: 220,
-				springConstant: 0.02,
+				nodeDistance: DEFAULT_NODE_DISTANCE,
+				springLength: DEFAULT_SPRING_LENGTH,
+				springConstant: DEFAULT_SPRING_CONSTANT,
 			}
 		},
 		layout: {},
@@ -40,10 +54,52 @@ export function setupNetwork() {
 		},
 		interaction: { hover: true, multiselect: false, navigationButtons: true }
 	};
+
 	const network = new vis.Network(container, data, options);
+	// Track current layout mode to avoid accidental switches during select/deselect
+	network.__layoutMode = 'physics';
+
+	// Helper to switch spacing values when a node is selected/deselected,
+	// without toggling the current layout mode.
+	function applySpacing(selected) {
+		if (network.__layoutMode === 'physics') {
+			// physics repulsion / spring tuning
+			network.setOptions({
+				physics: {
+					enabled: true,
+					repulsion: {
+						nodeDistance: selected ? SELECTED_NODE_DISTANCE : DEFAULT_NODE_DISTANCE,
+						springLength: selected ? SELECTED_SPRING_LENGTH : DEFAULT_SPRING_LENGTH,
+						springConstant: selected ? SELECTED_SPRING_CONSTANT : DEFAULT_SPRING_CONSTANT
+					}
+				}
+			});
+			if (network.stabilize) network.stabilize();
+		} else if (network.__layoutMode === 'hierarchical') {
+			// hierarchical layout spacing
+			network.setOptions({
+				layout: {
+					hierarchical: {
+						nodeSpacing: selected ? HIER_SELECTED_NODE_SPACING : HIER_DEFAULT_NODE_SPACING,
+						levelSeparation: selected ? HIER_SELECTED_LEVEL_SEPARATION : HIER_DEFAULT_LEVEL_SEPARATION
+					}
+				}
+			});
+			if (network.redraw) network.redraw();
+		}
+	}
+
+	// Expose spacing helper so toolbar can apply immediately on layout switch
+	window._applySpacing = (selected = false) => applySpacing(selected);
 	let lastSelectedNodes = [];
+	let spacingSelected = false;
 	network.on('selectNode', function (params) {
 		lastSelectedNodes = params.nodes.slice();
+		// increase global spacing to make room for expanded node(s) only on first selection
+		if (!spacingSelected) {
+			applySpacing(true);
+			spacingSelected = true;
+		}
 		params.nodes.forEach(nodeId => {
 			nodes.update({
 				id: nodeId,
@@ -60,6 +116,7 @@ export function setupNetwork() {
 		});
 	});
 	network.on('deselectNode', function (params) {
+		// restore previous nodes to default size
 		lastSelectedNodes.forEach(nodeId => {
 			nodes.update({
 				id: nodeId,
@@ -74,6 +131,11 @@ export function setupNetwork() {
 				}
 			});
 		});
+		// restore global spacing only if we previously expanded it
+		if (spacingSelected && lastSelectedNodes.length) {
+			applySpacing(false);
+			spacingSelected = false;
+		}
 		lastSelectedNodes = [];
 	});
 
