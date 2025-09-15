@@ -20,12 +20,60 @@ export function setupNodeOverlays(network, nodes, edges) {
     else document.body.appendChild(container);
   }
 
+  function createViewerContent(node) {
+    if (!node.link) {
+      return 'paper'; // Default placeholder text
+    }
+
+    if (node.type === 'video' && isYouTubeUrl(node.link)) {
+      const videoId = extractYouTubeId(node.link);
+      if (videoId) {
+        return `<iframe 
+          src="https://www.youtube.com/embed/${videoId}" 
+          width="100%" 
+          height="120" 
+          frameborder="0" 
+          allowfullscreen>
+        </iframe>`;
+      }
+    } else if (node.type === 'paper' && isPdfUrl(node.link)) {
+      return `<iframe 
+        src="${escapeHtml(node.link)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
+        width="100%" 
+        height="120" 
+        frameborder="0">
+      </iframe>`;
+    }
+    
+    // Fallback: show a link
+    return `<a href="${escapeHtml(node.link)}" target="_blank" style="color: #2B7CE9; text-decoration: none;">
+      ${node.type === 'video' ? '📹 View Video' : '📄 View Paper'}
+    </a>`;
+  }
+
+  function isYouTubeUrl(url) {
+    return /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/.test(url);
+  }
+
+  function extractYouTubeId(url) {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+    return match ? match[1] : null;
+  }
+
+  function isPdfUrl(url) {
+    return /\.pdf$/i.test(url) || url.includes('pdf');
+  }
+
   function createOverlay(node) {
     const el = document.createElement('div');
     el.className = 'node-overlay';
     el.dataset.nodeId = String(node.id);
     el.style.position = 'absolute';
     el.style.pointerEvents = 'none'; // default off; enable only on toolbar
+    
+    // Create viewer content based on node type and link
+    const viewerContent = createViewerContent(node);
+    
     el.innerHTML = `
         <div class="node-overlay__card">
           <div class="node-overlay__title" title="${escapeHtml(node.title || '')}">
@@ -34,7 +82,7 @@ export function setupNodeOverlays(network, nodes, edges) {
           </div>
           <div class="node-overlay__spacer">
             <div class="node-overlay__content">
-              <div>paper</div>
+              <div class="viewer-container">${viewerContent}</div>
               <div>notes</div>
             </div>
           </div>
@@ -197,6 +245,8 @@ export function setupNodeOverlays(network, nodes, edges) {
           const titleEl = el.querySelector('.node-overlay__title');
           const titleTextEl = el.querySelector('.node-overlay__titleText');
           const authorsEl = el.querySelector('.node-overlay__authors');
+          const viewerContainer = el.querySelector('.viewer-container');
+          
           titleEl.setAttribute('title', escapeHtml(n.title));
           if (titleTextEl) titleTextEl.textContent = n.title || '';
           if (authorsEl) {
@@ -207,6 +257,11 @@ export function setupNodeOverlays(network, nodes, edges) {
             a.className = 'node-overlay__authors';
             a.textContent = n.authors;
             titleEl.appendChild(a);
+          }
+          
+          // Update viewer content
+          if (viewerContainer) {
+            viewerContainer.innerHTML = createViewerContent(n);
           }
           if (typeof window._saveToStorage === 'function') window._saveToStorage();
         });
