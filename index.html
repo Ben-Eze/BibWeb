@@ -56,7 +56,14 @@
           <input type="text" id="paperDOI" placeholder="10.1000/182">
         </div>
         <div class="form-group">
-          <label for="paperLink">Link (PDF or YouTube)</label>
+          <label>Type</label>
+          <div class="type-switch">
+            <button type="button" id="typePaper" class="type-btn active">Paper</button>
+            <button type="button" id="typeVideo" class="type-btn">Video</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="paperLink" id="linkLabel">PDF URL</label>
           <input type="url" id="paperLink" placeholder="https://...">
         </div>
         <div class="form-buttons">

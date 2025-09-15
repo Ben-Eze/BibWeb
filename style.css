@@ -409,6 +409,32 @@ body {
     box-shadow: 0 0 0 2px rgba(43, 124, 233, 0.1);
 }
 
+.type-switch {
+    display: flex;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+}
+
+.type-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: #f8f9fa;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+
+.type-btn.active {
+    background: #2B7CE9;
+    color: white;
+}
+
+.type-btn:hover:not(.active) {
+    background: #e9ecef;
+}
+
 .form-buttons {
     display: flex;
     gap: 12px;

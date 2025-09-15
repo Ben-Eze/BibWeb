@@ -112,6 +112,7 @@ export function setupNodeOverlays(network, nodes, edges) {
               authors: formData.authors,
               doi: formData.doi,
               link: formData.link,
+              type: formData.type,
               label: '',
               shape: 'box'
             };
@@ -188,6 +189,7 @@ export function setupNodeOverlays(network, nodes, edges) {
           n.authors = formData.authors;
           n.doi = formData.doi;
           n.link = formData.link;
+          n.type = formData.type;
           n.label = '';
           nodes.update(n);
           

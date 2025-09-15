@@ -7,9 +7,28 @@ export function setupPaperForm() {
   const modalTitle = document.getElementById('modalTitle');
   const closeBtn = modal.querySelector('.modal-close');
   const cancelBtn = modal.querySelector('.btn-cancel');
+  const typePaperBtn = document.getElementById('typePaper');
+  const typeVideoBtn = document.getElementById('typeVideo');
+  const linkLabel = document.getElementById('linkLabel');
+  const linkInput = document.getElementById('paperLink');
   
   let currentCallback = null;
   let currentMode = 'add'; // 'add' or 'edit'
+  let currentType = 'paper'; // 'paper' or 'video'
+
+  function updateLinkField() {
+    if (currentType === 'paper') {
+      linkLabel.textContent = 'PDF URL';
+      linkInput.placeholder = 'https://example.com/paper.pdf';
+      typePaperBtn.classList.add('active');
+      typeVideoBtn.classList.remove('active');
+    } else {
+      linkLabel.textContent = 'YouTube URL';
+      linkInput.placeholder = 'https://youtube.com/watch?v=...';
+      typeVideoBtn.classList.add('active');
+      typePaperBtn.classList.remove('active');
+    }
+  }
 
   function showForm(mode, nodeData = {}, callback) {
     currentCallback = callback;
@@ -17,6 +36,10 @@ export function setupPaperForm() {
     
     // Set modal title
     modalTitle.textContent = mode === 'edit' ? 'Edit Paper' : 'Add Paper';
+    
+    // Determine type from existing data or default to paper
+    currentType = (nodeData.type === 'video') ? 'video' : 'paper';
+    updateLinkField();
     
     // Populate form fields
     document.getElementById('paperTitle').value = nodeData.title || '';
@@ -44,7 +67,8 @@ export function setupPaperForm() {
       nickname: document.getElementById('paperNickname').value.trim(),
       authors: document.getElementById('paperAuthor').value.trim(),
       doi: document.getElementById('paperDOI').value.trim(),
-      link: document.getElementById('paperLink').value.trim()
+      link: document.getElementById('paperLink').value.trim(),
+      type: currentType
     };
     
     if (!formData.title) {
@@ -63,6 +87,17 @@ export function setupPaperForm() {
   form.addEventListener('submit', handleSubmit);
   closeBtn.addEventListener('click', hideForm);
   cancelBtn.addEventListener('click', hideForm);
+  
+  // Type switch buttons
+  typePaperBtn.addEventListener('click', () => {
+    currentType = 'paper';
+    updateLinkField();
+  });
+  
+  typeVideoBtn.addEventListener('click', () => {
+    currentType = 'video';
+    updateLinkField();
+  });
   
   // Close on backdrop click
   modal.addEventListener('click', (e) => {

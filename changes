@@ -1,8 +1,6 @@
 TODO:
 
-Add the ability to lock nodes in place when in physics mode. They can be dragged, but not affected by physics. This property is still stored when in hierarchical mode, but has no effect
-
 The first one will contain a pdf viewer so you can view the paper. the pdf is either provided via url or from the user's files.
 Then the second 
 
-can you fix the behaviour that parent nodes (created with the + add paper button at the top of the screen) don't show the text
+In the nodeOverlay, if a url is provided replace the placeholder text 'paper' either with a youtube embedding or a pdf viewer, depending on the 
