@@ -32,7 +32,12 @@ export function setupNodeOverlays(network, nodes, edges) {
             <div class="node-overlay__titleText">${escapeHtml(node.title || '')}</div>
             ${node.authors ? `<div class="node-overlay__authors">${escapeHtml(node.authors)}</div>` : ''}
           </div>
-          <div class="node-overlay__spacer"></div>
+          <div class="node-overlay__spacer">
+            <div class="node-overlay__content">
+              <div>paper</div>
+              <div>notes</div>
+            </div>
+          </div>
           <div class="node-overlay__toolbar">
           <button class="btn-edit" title="Edit node">✏️</button>
           <button class="btn-del" title="Delete node">🗑️</button>
