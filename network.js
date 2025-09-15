@@ -1,6 +1,5 @@
 // Handles vis-network setup, node/edge creation, and event handling
 // Exports: setupNetwork()
-import { setupNodeToolbar } from './nodeToolbar.js';
 import { setupEdgeToolbar } from './edgeToolbar.js';
 import { setupNodeOverlays } from './nodeOverlays.js';
 
@@ -194,7 +193,6 @@ export function setupNetwork() {
 	window._addOrGetPaper = addOrGetPaper;
 	window._saveToStorage = saveToStorage;
 
-	setupNodeToolbar(network, nodes, edges);
 	setupEdgeToolbar(network, nodes, edges);
 	// Replace labels with overlays
 	nodes.update(nodes.get().map(n => ({ id: n.id, label: '' })));

@@ -26,11 +26,14 @@ export function setupNodeOverlays(network, nodes, edges) {
     el.dataset.nodeId = String(node.id);
     el.style.position = 'absolute';
     el.style.pointerEvents = 'none'; // default off; enable only on toolbar
-    el.innerHTML = `
-      <div class="node-overlay__card">
-        <div class="node-overlay__title" title="${escapeHtml(node.title || '')}">${escapeHtml(node.title || '')}${node.authors ? `<div class="node-overlay__authors">${escapeHtml(node.authors)}</div>` : ''}</div>
-        <div class="node-overlay__spacer"></div>
-        <div class="node-overlay__toolbar">
+      el.innerHTML = `
+        <div class="node-overlay__card">
+          <div class="node-overlay__title" title="${escapeHtml(node.title || '')}">
+            <div class="node-overlay__titleText">${escapeHtml(node.title || '')}</div>
+            ${node.authors ? `<div class="node-overlay__authors">${escapeHtml(node.authors)}</div>` : ''}
+          </div>
+          <div class="node-overlay__spacer"></div>
+          <div class="node-overlay__toolbar">
           <button class="btn-add" title="Add referenced paper">Add reference</button>
           <button class="btn-edit" title="Edit node">Edit</button>
           <button class="btn-del" title="Delete node">Delete</button>
@@ -100,8 +103,19 @@ export function setupNodeOverlays(network, nodes, edges) {
       nodes.update(n);
       // update overlay title/authors now
       const titleEl = el.querySelector('.node-overlay__title');
+      const titleTextEl = el.querySelector('.node-overlay__titleText');
+      const authorsEl = el.querySelector('.node-overlay__authors');
       titleEl.setAttribute('title', escapeHtml(n.title));
-      titleEl.innerHTML = `${escapeHtml(n.title)}${n.authors ? `<div class="node-overlay__authors">${escapeHtml(n.authors)}</div>` : ''}`;
+      if (titleTextEl) titleTextEl.textContent = n.title || '';
+      if (authorsEl) {
+        if (n.authors) { authorsEl.textContent = n.authors; }
+        else { authorsEl.remove(); }
+      } else if (n.authors) {
+        const a = document.createElement('div');
+        a.className = 'node-overlay__authors';
+        a.textContent = n.authors;
+        titleEl.appendChild(a);
+      }
       if (typeof window._saveToStorage === 'function') window._saveToStorage();
     });
     toolbar.querySelector('.btn-del').addEventListener('click', (e) => {
@@ -180,9 +194,20 @@ export function setupNodeOverlays(network, nodes, edges) {
         if (!el) return;
         const n = nodes.get(id);
         const titleEl = el.querySelector('.node-overlay__title');
+        const titleTextEl = el.querySelector('.node-overlay__titleText');
+        const authorsEl = el.querySelector('.node-overlay__authors');
         if (titleEl && n) {
           titleEl.setAttribute('title', escapeHtml(n.title || ''));
-          titleEl.innerHTML = `${escapeHtml(n.title || '')}${n.authors ? `<div class="node-overlay__authors">${escapeHtml(n.authors)}` + `</div>` : ''}`;
+          if (titleTextEl) titleTextEl.textContent = n.title || '';
+          if (authorsEl) {
+            if (n.authors) { authorsEl.textContent = n.authors; }
+            else { authorsEl.remove(); }
+          } else if (n.authors) {
+            const a = document.createElement('div');
+            a.className = 'node-overlay__authors';
+            a.textContent = n.authors;
+            titleEl.appendChild(a);
+          }
         }
       });
     }

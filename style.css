@@ -71,6 +71,20 @@ body {
     word-break: break-word;
 }
 
+.node-overlay__titleText {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* When the node is selected, show full title text (no ellipsis) */
+.node-overlay.is-selected .node-overlay__titleText {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+}
+
 .node-overlay__authors {
     margin-top: calc(4px * var(--zoom-scale,1));
     color: #555;
@@ -96,13 +110,12 @@ body {
     padding: calc(4px * var(--zoom-scale,1)) calc(8px * var(--zoom-scale,1))
 }
 
-.node-overlay .node-overlay__toolbar {
-    visibility: hidden
-}
+.node-overlay .node-overlay__toolbar { display: none }
+.node-overlay.is-selected .node-overlay__toolbar { display: flex }
 
-.node-overlay.is-selected .node-overlay__toolbar {
-    visibility: visible
-}
+/* Collapse spacer when not selected so title/authors can use the full height */
+.node-overlay .node-overlay__spacer { display: none }
+.node-overlay.is-selected .node-overlay__spacer { display: block }
 
 .node-overlay.is-selected .node-overlay__card {
     background: rgba(255, 255, 255, 0);
@@ -139,24 +152,8 @@ body {
     position: relative
 }
 
-#nodeToolbar {
-    position: fixed;
-    z-index: 20;
-    padding: 6px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.98);
-    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-    display: flex;
-    gap: 6px
-}
-
-#nodeToolbar button {
-    padding: 6px 8px;
-    border-radius: 6px;
-    border: 1px solid #ddd;
-    background: #fff;
-    cursor: pointer
-}
+/* Hide legacy floating node toolbar (replaced by overlay toolbars) */
+#nodeToolbar { display: none !important }
 
 .hidden {
     display: none
