@@ -3,36 +3,80 @@
 import { setupNodeToolbar } from './nodeToolbar.js';
 import { setupEdgeToolbar } from './edgeToolbar.js';
 
+const SELECTED_WIDTH = 400;
+const SELECTED_HEIGHT = 120;
+const DEFAULT_WIDTH = 240;
+const DEFAULT_HEIGHT = 30; // vis-network default
+const DEFAULT_LENGTH = 400;
+const SELECTED_LENGTH = 600;
+
 export function setupNetwork() {
   const nodes = new vis.DataSet([]);
   const edges = new vis.DataSet([]);
-  const container = document.getElementById('network');
   const data = { nodes, edges };
-  const options = {
-    physics: {
-      enabled: true,
-      stabilization: {iterations: 200},
-      repulsion: {
-        nodeDistance: 220,
-        springLength: 220,
-        springConstant: 0.02,
-      }
-    },
-    layout: {},
-    nodes: {
-      shape: 'box',
-      margin: 10,
-      widthConstraint: {maximum:220},
-      font: {multi: 'html'}
-    },
-    edges: {
-      arrows: {to: {enabled: true, scaleFactor:1}},
-      smooth: {enabled:true, type:'cubicBezier'}
-    },
-    interaction: {hover:true, multiselect:false, navigationButtons:true}
-  };
-  const network = new vis.Network(container, data, options);
+  const container = document.getElementById('network');
 
+  const options = {
+      physics: {
+        enabled: true,
+        stabilization: {iterations: 200},
+        repulsion: {
+          nodeDistance: 220,
+          springLength: 220,
+          springConstant: 0.02,
+        }
+      },
+      layout: {},
+      nodes: {
+        shape: 'box',
+        margin: 10,
+        widthConstraint: {minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH},
+        heightConstraint: {minimum: DEFAULT_HEIGHT},
+        font: {multi: 'html'}
+      },
+      edges: {
+        arrows: {to: {enabled: true, scaleFactor:1}},
+        smooth: {enabled:true, type:'cubicBezier'}
+      },
+      interaction: {hover:true, multiselect:false, navigationButtons:true}
+    };
+    const network = new vis.Network(container, data, options);
+    let lastSelectedNodes = [];
+    network.on('selectNode', function(params) {
+      lastSelectedNodes = params.nodes.slice();
+      params.nodes.forEach(nodeId => {
+        nodes.update({
+      id: nodeId,
+      widthConstraint: {minimum: SELECTED_WIDTH, maximum: SELECTED_WIDTH},
+      heightConstraint: {minimum: SELECTED_HEIGHT},
+      font: {size: 16}
+        });
+        // Update connected edges to be longer
+        edges.get().forEach(edge => {
+          if (edge.from === nodeId || edge.to === nodeId) {
+            edges.update({id: edge.id, length: SELECTED_LENGTH});
+          }
+        });
+      });
+    });
+    network.on('deselectNode', function(params) {
+      lastSelectedNodes.forEach(nodeId => {
+        nodes.update({
+        id: nodeId,
+        widthConstraint: {minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH},
+        heightConstraint: {minimum: DEFAULT_HEIGHT},
+        font: {size: 16}
+        });
+        // Restore connected edges to default length
+        edges.get().forEach(edge => {
+          if (edge.from === nodeId || edge.to === nodeId) {
+            edges.update({id: edge.id, length: DEFAULT_LENGTH});
+          }
+        });
+      });
+      lastSelectedNodes = [];
+    });
+  
   function addOrGetPaper({title, authors, notes}){
     // Remove HTML tags
     const stripHtmlTags = str => (!str ? '' : str.replace(/<[^>]*>/g, ''));

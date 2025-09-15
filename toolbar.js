@@ -28,7 +28,7 @@ export function setupDocumentToolbar(network, nodes, edges) {
   };
   document.getElementById('switchHierUD').onclick = function() {
     network.setOptions({
-      physics: false,
+      physics: true,
       layout: {
         hierarchical: {
           direction: 'UD',
@@ -42,22 +42,22 @@ export function setupDocumentToolbar(network, nodes, edges) {
       }
     });
   };
-  document.getElementById('switchHierLR').onclick = function() {
-    network.setOptions({
-      physics: false,
-      layout: {
-        hierarchical: {
-          direction: 'LR',
-          sortMethod: 'directed',
-          nodeSpacing: 120,
-          levelSeparation: 120,
-          treeSpacing: 100,
-          blockShifting: false,
-          edgeMinimization: false,
-        }
-      }
-    });
-  };
+//   document.getElementById('switchHierLR').onclick = function() {
+//     network.setOptions({
+//       physics: true,
+//       layout: {
+//         hierarchical: {
+//           direction: 'LR',
+//           sortMethod: 'directed',
+//           nodeSpacing: 120,
+//           levelSeparation: 120,
+//           treeSpacing: 100,
+//           blockShifting: false,
+//           edgeMinimization: false,
+//         }
+//       }
+//     });
+//   };
 
   document.getElementById('addPaperBtn').addEventListener('click', ()=>{
     const title = prompt('Paper title (required):');
