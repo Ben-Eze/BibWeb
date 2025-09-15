@@ -12,17 +12,15 @@ const SELECTED_LENGTH = 600;
 
 // Spacing / physics tuning constants (used for both physics and hierarchical modes)
 const DEFAULT_NODE_DISTANCE = 220;
-const DEFAULT_SPRING_LENGTH = 220;
+const DEFAULT_SPRING_LENGTH = 110;
 const DEFAULT_SPRING_CONSTANT = 0.02;
-
-const SELECTED_NODE_DISTANCE = 380;
-const SELECTED_SPRING_LENGTH = 380;
-const SELECTED_SPRING_CONSTANT = 0.015; // slightly gentler spring when selected
 
 const HIER_DEFAULT_NODE_SPACING = DEFAULT_WIDTH + 40;
 const HIER_DEFAULT_LEVEL_SEPARATION = 2 * DEFAULT_HEIGHT + 60;
-const HIER_SELECTED_NODE_SPACING = SELECTED_WIDTH + 20;
-const HIER_SELECTED_LEVEL_SEPARATION = SELECTED_HEIGHT + 20;
+
+const DEFAULT_GRAVITATIONAL_CONSTANT = -1; // negative for repulsion
+const DEFAULT_CENTRAL_GRAVITY = 0.0001; // remove central attraction
+const DEFAULT_DAMPING = 0.4; // add damping to reduce oscillation
 
 export function setupNetwork() {
 	const nodes = new vis.DataSet([]);
@@ -39,6 +37,9 @@ export function setupNetwork() {
 				avoidOverlap: 1,
 				springLength: DEFAULT_SPRING_LENGTH,
 				springConstant: DEFAULT_SPRING_CONSTANT,
+				gravitationalConstant: DEFAULT_GRAVITATIONAL_CONSTANT, // negative for repulsion instead of attraction
+				centralGravity: DEFAULT_CENTRAL_GRAVITY, // remove central attraction
+				damping: DEFAULT_DAMPING // add damping to reduce oscillation
 			}
 		},
 		layout: {},
@@ -77,8 +78,11 @@ export function setupNetwork() {
 					solver: 'forceAtlas2Based',
 					forceAtlas2Based: {
 						avoidOverlap: 1,
-						springLength: selected ? SELECTED_SPRING_LENGTH : DEFAULT_SPRING_LENGTH,
-						springConstant: selected ? SELECTED_SPRING_CONSTANT : DEFAULT_SPRING_CONSTANT
+						springLength: DEFAULT_SPRING_LENGTH,
+						springConstant: DEFAULT_SPRING_CONSTANT,
+						gravitationalConstant: DEFAULT_GRAVITATIONAL_CONSTANT, // negative for repulsion
+						centralGravity: DEFAULT_CENTRAL_GRAVITY, // remove central attraction
+						damping: DEFAULT_DAMPING // add damping
 					}
 				}
 			});
@@ -88,8 +92,8 @@ export function setupNetwork() {
 			network.setOptions({
 				layout: {
 					hierarchical: {
-						nodeSpacing: selected ? HIER_SELECTED_NODE_SPACING : HIER_DEFAULT_NODE_SPACING,
-						levelSeparation: selected ? HIER_SELECTED_LEVEL_SEPARATION : HIER_DEFAULT_LEVEL_SEPARATION
+						nodeSpacing: HIER_DEFAULT_NODE_SPACING,
+						levelSeparation: HIER_DEFAULT_LEVEL_SEPARATION
 					}
 				}
 			});
