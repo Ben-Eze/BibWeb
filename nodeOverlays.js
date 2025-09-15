@@ -26,7 +26,7 @@ export function setupNodeOverlays(network, nodes, edges) {
     el.dataset.nodeId = String(node.id);
     el.style.position = 'absolute';
     el.style.pointerEvents = 'none'; // default off; enable only on toolbar
-      el.innerHTML = `
+    el.innerHTML = `
         <div class="node-overlay__card">
           <div class="node-overlay__title" title="${escapeHtml(node.title || '')}">
             <div class="node-overlay__titleText">${escapeHtml(node.title || '')}</div>
@@ -34,8 +34,6 @@ export function setupNodeOverlays(network, nodes, edges) {
           </div>
           <div class="node-overlay__spacer"></div>
           <div class="node-overlay__toolbar">
-          <button class="btn-lock" title="Toggle lock position">🔒</button>
-          <button class="btn-add" title="Add referenced paper">➕</button>
           <button class="btn-edit" title="Edit node">✏️</button>
           <button class="btn-del" title="Delete node">🗑️</button>
         </div>
@@ -48,22 +46,35 @@ export function setupNodeOverlays(network, nodes, edges) {
   // visibility is primarily controlled by CSS class .is-selected
 
     // Wire actions
-    const lockBtn = toolbar.querySelector('.btn-lock');
-    const setLockButtonState = (locked) => {
-      lockBtn.textContent = locked ? '🔓' : '🔒';
-      lockBtn.title = locked ? 'Unlock (allow physics to move this node)' : 'Lock position (physics won’t move this node)';
+    // Floating lock button (will be positioned top-right)
+  const lockFloatBtn = document.createElement('button');
+    lockFloatBtn.className = 'node-overlay__btnLockFloating';
+    lockFloatBtn.style.pointerEvents = 'auto';
+    const setLockUI = (locked) => {
+      lockFloatBtn.textContent = locked ? '🔒' : '🔓';
+      lockFloatBtn.title = locked ? 'Unlock (allow physics to move this node)' : 'Lock position (physics won’t move this node)';
+      if (locked) el.classList.add('is-locked'); else el.classList.remove('is-locked');
     };
-    setLockButtonState(node.physics === false);
-    lockBtn.addEventListener('click', (e) => {
+    lockFloatBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const n = nodes.get(node.id);
       const isLocked = n && n.physics === false;
-      // physics:false => excluded from physics (user can still drag and it stays)
       nodes.update({ id: node.id, physics: isLocked ? true : false });
-      setLockButtonState(!isLocked);
+      // update visual state
+      const nowLocked = !isLocked;
+      setLockUI(nowLocked);
       if (typeof window._saveToStorage === 'function') window._saveToStorage();
     });
-    toolbar.querySelector('.btn-add').addEventListener('click', (e) => {
+  // initialize floating lock to current state
+    const initLocked = (nodes.get(node.id) || {}).physics === false;
+    setLockUI(initLocked);
+    // Floating add button (bottom-center)
+    const addFloatBtn = document.createElement('button');
+    addFloatBtn.className = 'node-overlay__btnAddFloating';
+    addFloatBtn.style.pointerEvents = 'auto';
+    addFloatBtn.textContent = '➕';
+    addFloatBtn.title = 'Add referenced paper';
+    addFloatBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const currentNodeId = node.id;
       const title = prompt('Referenced paper title (required):');
@@ -107,6 +118,11 @@ export function setupNodeOverlays(network, nodes, edges) {
       }
       if (typeof window._saveToStorage === 'function') window._saveToStorage();
     });
+
+    const card = el.querySelector('.node-overlay__card');
+    card.appendChild(lockFloatBtn);
+    card.appendChild(addFloatBtn);
+  // removed bottom-toolbar add handler (using floating add instead)
     toolbar.querySelector('.btn-edit').addEventListener('click', (e) => {
       e.stopPropagation();
       const n = nodes.get(node.id);
@@ -212,7 +228,7 @@ export function setupNodeOverlays(network, nodes, edges) {
         const titleEl = el.querySelector('.node-overlay__title');
         const titleTextEl = el.querySelector('.node-overlay__titleText');
         const authorsEl = el.querySelector('.node-overlay__authors');
-        const lockBtn = el.querySelector('.btn-lock');
+  const lockFloatBtn = el.querySelector('.node-overlay__btnLockFloating');
         if (titleEl && n) {
           titleEl.setAttribute('title', escapeHtml(n.title || ''));
           if (titleTextEl) titleTextEl.textContent = n.title || '';
@@ -225,11 +241,12 @@ export function setupNodeOverlays(network, nodes, edges) {
             a.textContent = n.authors;
             titleEl.appendChild(a);
           }
-          if (lockBtn) {
-            const locked = n.physics === false;
-            lockBtn.textContent = locked ? '🔓' : '🔒';
-            lockBtn.title = locked ? 'Unlock (allow physics to move this node)' : 'Lock position (physics won’t move this node)';
+          const locked = n.physics === false;
+          if (lockFloatBtn) {
+            lockFloatBtn.textContent = locked ? '🔒' : '🔓';
+            lockFloatBtn.title = locked ? 'Unlock (allow physics to move this node)' : "Lock position (physics won't move this node)";
           }
+          if (locked) el.classList.add('is-locked'); else el.classList.remove('is-locked');
         }
       });
     }
@@ -267,6 +284,20 @@ export function setupNodeOverlays(network, nodes, edges) {
   });
   network.on('deselectNode', () => {
     hideAllToolbars();
+  });
+
+  // Hover handling: show floating lock/add on hover even when not selected
+  network.on('hoverNode', (params) => {
+    if (params && params.node != null) {
+      const el = overlayMap.get(params.node);
+      if (el) el.classList.add('is-hover');
+    }
+  });
+  network.on('blurNode', (params) => {
+    if (params && params.node != null) {
+      const el = overlayMap.get(params.node);
+      if (el) el.classList.remove('is-hover');
+    }
   });
 
   function escapeHtml(s) {
