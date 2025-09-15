@@ -24,6 +24,72 @@ body {
     align-items: center
 }
 
+/* Document Toolbar */
+#documentToolbar {
+    position: fixed;
+    left: 0;
+    top: 0; /* all the way to the top */
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100vw;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 0; /* remove radius since full width */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.toolbar-section {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toolbar-left {
+    justify-content: flex-start;
+}
+
+.toolbar-center {
+    justify-content: center;
+    flex: 1;
+}
+
+.toolbar-right {
+    justify-content: flex-end;
+}
+
+#documentToolbar button {
+    padding: 0.4rem 0.5rem; /* slightly bigger */
+    background: #000000; /* light blue */
+    color: #ffffff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s ease;
+}
+
+#documentToolbar button:hover {
+    background: #3f3f3f; /* slightly darker light blue */
+}
+
+/* Override for addPaperBtn: white on black */
+#addPaperBtn {
+    background: #000;
+    color: #fff;
+}
+
+/* Right section buttons: darker */
+.toolbar-right button {
+    background: #333;
+    color: #fff;
+}
+
+.toolbar-right button:hover {
+    background: #555;
+}
+
 /* Node overlays */
 #nodeOverlayContainer {
     position: absolute;

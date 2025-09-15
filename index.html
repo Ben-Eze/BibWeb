@@ -10,13 +10,18 @@
 </head>
 <body>
   <div id="documentToolbar">
-    <button id="switchPhysics">Physics</button>
-    <button id="switchHierUD">Hierarchical</button>
-    <!-- <button id="switchHierLR">Hierarchical LR</button> -->
-    <button id="addPaperBtn">+ add paper</button>
-  <button id="exportBtn" title="Export to JSON">Export</button>
-  <button id="importBtn" title="Import JSON">Import</button>
-  <button id="clearBtn" title="Clear graph">Clear</button>
+    <div class="toolbar-section toolbar-left">
+      <button id="clearBtn" title="Clear graph">📄</button>
+      <button id="exportBtn" title="Export to JSON">💾</button>
+      <button id="importBtn" title="Import JSON">📥</button>
+    </div>
+    <div class="toolbar-section toolbar-center">
+      <button id="addPaperBtn">+ add paper</button>
+    </div>
+    <div class="toolbar-section toolbar-right">
+      <button id="switchHierUD">🌳</button>
+      <button id="switchPhysics">🕸️</button>
+    </div>
     <input id="importFile" type="file" accept=".json" style="display:none" />
   </div>
   <div id="network">
