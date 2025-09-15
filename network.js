@@ -213,7 +213,7 @@ export function setupNetwork() {
 			return `${escapeHtml(node.title)}${authors}`;
 		};
 		const id = nextId();
-		const node = { id, title: '', authors: '', notes, label: formatLabel({ title, authors }), shape: 'box' };
+		const node = { id, title: title, authors: authors, notes, label: formatLabel({ title, authors }), shape: 'box' };
 		nodes.add(node);
 		network.focus(id, { scale: 1.2, animation: true });
 		return node;
