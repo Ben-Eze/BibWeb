@@ -66,7 +66,19 @@ export class NotesEditor {
     const editorEl = document.createElement('div');
     editorEl.className = 'notes-editor';
 
+    // Math button below editor
+    const mathToolbar = document.createElement('div');
+    mathToolbar.className = 'fullscreen-editor__math-toolbar';
+    
+    const mathButton = document.createElement('button');
+    mathButton.className = 'math-insert-button';
+    mathButton.innerHTML = '∑ Equation';
+    mathButton.title = 'Insert LaTeX math formula';
+    
+    mathToolbar.appendChild(mathButton);
+
     editorSection.appendChild(editorEl);
+    editorSection.appendChild(mathToolbar);
     content.appendChild(viewer);
     content.appendChild(editorSection);
 
@@ -78,6 +90,15 @@ export class NotesEditor {
       e.stopPropagation();
       this.exitFullscreenEditor(nodeId);
     });
+
+    // Math button handler
+    mathButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.insertMathFormula(nodeId);
+    });
+
+    // Test KaTeX availability on page load
+    this.testKaTeX();
 
     // Keyboard shortcuts
     const handleKeydown = (e) => {
@@ -116,10 +137,9 @@ export class NotesEditor {
           initialValue: initialContent || '',
           toolbarItems: [
             ['heading', 'bold', 'italic'],
-            ['hr', 'quote'],
             ['ul', 'ol'],
             ['link', 'image'],
-            ['code']
+            ['code', 'codeblock']
           ],
           hooks: {
             addImageBlobHook: (blob, callback) => {
@@ -135,6 +155,13 @@ export class NotesEditor {
         editor.changeMode('wysiwyg', true);
         this.editors.set(nodeId, editor);
 
+        // Debug: Log available methods
+        console.log('Editor methods:', Object.getOwnPropertyNames(editor));
+        console.log('Editor prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(editor)));
+
+        // Set up math button functionality
+        this.setupMathButton(editor);
+
         // Set up auto-save
         this.setupAutoSave(nodeId, editor);
         
@@ -144,6 +171,91 @@ export class NotesEditor {
       }
     } else {
       this.createFallbackTextarea(editorEl, initialContent, nodeId);
+    }
+  }
+
+  setupMathButton(editor) {
+    console.log('setupMathButton called', editor);
+    
+    // Since we're adding the math button outside the Toast UI toolbar,
+    // we don't need to modify the toolbar here anymore
+    console.log('Math button is already added to the custom toolbar above the editor');
+  }
+
+  testKaTeX() {
+    console.log('Testing KaTeX availability...');
+    if (typeof katex !== 'undefined') {
+      console.log('KaTeX is available, version:', katex.version || 'unknown');
+      try {
+        const testFormula = 'E = mc^2';
+        const rendered = katex.renderToString(testFormula, { displayMode: false });
+        console.log('KaTeX test successful, rendered:', rendered);
+      } catch (e) {
+        console.error('KaTeX test failed:', e);
+      }
+    } else {
+      console.error('KaTeX is not available! Check if the script is loaded correctly.');
+    }
+  }
+
+  insertMathFormula(nodeId) {
+    console.log('insertMathFormula called for nodeId:', nodeId);
+    const editor = this.editors.get(nodeId);
+    console.log('Editor found:', !!editor);
+    
+    if (editor) {
+      // Prompt user for formula
+      const formula = prompt('Enter LaTeX math formula:', 'E = mc^2');
+      console.log('User entered formula:', formula);
+      
+      if (formula) {
+        const mathText = `$${formula}$`;
+        console.log('Inserting math text:', mathText);
+        
+        try {
+          // Use the simpler insertText method that should work
+          editor.insertText(mathText);
+          console.log('Inserted text successfully');
+          editor.focus();
+        } catch (err) {
+          console.error('Error inserting math:', err);
+          
+          // Fallback: try to access the markdown editor directly
+          try {
+            // Get markdown content, add formula, and set it back
+            const currentContent = editor.getMarkdown();
+            const newContent = currentContent + mathText;
+            editor.setMarkdown(newContent);
+            console.log('Fallback: Added to end of content');
+          } catch (fallbackErr) {
+            console.error('Fallback insertion failed:', fallbackErr);
+            
+            // Last resort: direct DOM manipulation
+            try {
+              const editorElement = document.querySelector('.fullscreen-editor .toastui-editor');
+              if (editorElement) {
+                // Try to find any textarea or contenteditable element
+                const textInput = editorElement.querySelector('textarea, [contenteditable="true"]');
+                if (textInput) {
+                  if (textInput.tagName === 'TEXTAREA') {
+                    textInput.value += mathText;
+                  } else {
+                    textInput.innerHTML += mathText;
+                  }
+                  console.log('DOM manipulation successful');
+                } else {
+                  console.error('Could not find text input element');
+                }
+              }
+            } catch (domErr) {
+              console.error('DOM manipulation failed:', domErr);
+              alert(`Could not insert formula. Please manually type: ${mathText}`);
+            }
+          }
+        }
+      }
+    } else {
+      console.error('No editor found for nodeId:', nodeId);
     }
   }
 
@@ -363,10 +475,9 @@ export class NotesEditor {
           initialValue: currentContent || '',
           toolbarItems: [
             ['heading', 'bold', 'italic'],
-            ['hr', 'quote'],
             ['ul', 'ol'],
             ['link', 'image'],
-            ['code']
+            ['code', 'codeblock']
           ],
           hooks: {
             addImageBlobHook: (blob, callback) => {
@@ -381,6 +492,9 @@ export class NotesEditor {
         
         // Force WYSIWYG mode; CSS already hides mode switch & markdown UI
         editor.changeMode('wysiwyg', true);
+        
+        // Set up math button functionality
+        this.setupMathButton(editor);
         
         this.editors.set(nodeId, editor);
       } catch (error) {
@@ -513,30 +627,179 @@ export class NotesEditor {
 
   // Simple markdown to HTML converter (basic implementation)
   markdownToHtml(markdown) {
-    let html = markdown
-      // Headers
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      // Bold
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      // Italic
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      // Code
-      .replace(/`(.*?)`/gim, '<code>$1</code>')
+    let html = markdown;
+    
+    // Handle LaTeX math (inline and display) - must come first to avoid conflicts
+    if (typeof katex !== 'undefined') {
+      // Display math ($$...$$)
+      html = html.replace(/\$\$([\s\S]*?)\$\$/gm, (match, formula) => {
+        try {
+          return katex.renderToString(formula.trim(), { displayMode: true });
+        } catch (e) {
+          return `<span style="color: red;">Math Error: ${formula}</span>`;
+        }
+      });
+      
+      // Inline math ($...$)
+      html = html.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
+        try {
+          return katex.renderToString(formula.trim(), { displayMode: false });
+        } catch (e) {
+          return `<span style="color: red;">Math Error: ${formula}</span>`;
+        }
+      });
+    }
+    
+    // Process formatting (but keep line breaks as-is for now)
+    html = html
+      // Bold and italic (handle nested formatting)
+      .replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      // Code blocks (handle multi-line)
+      .replace(/```[\s\S]*?```/gim, (match) => {
+        const content = match.replace(/```/g, '').trim();
+        return `<pre style="background: #f4f4f4; padding: 1em; border-radius: 4px; overflow-x: auto; margin: 1em 0;"><code>${content}</code></pre>`;
+      })
+      // Inline code
+      .replace(/`(.*?)`/gim, '<code style="background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace;">$1</code>')
       // Images (must come before links)
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width: 100%; height: auto;">')
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 0.5em 0;">')
       // Links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
-      // Line breaks
-      .replace(/\n/gim, '<br>');
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" style="color: #007acc; text-decoration: none;">$1</a>');
+
+    // Handle lists and paragraphs properly using original line structure (before formatting)
+    const lines = html.split('\n');
+    let processedLines = [];
+    let inList = false;
+    let listType = '';
+    let currentParagraph = '';
     
-    // Handle bullet points
-    html = html.replace(/^[\-\*\+] (.*)$/gim, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Check for markdown headers first (before any processing)
+      const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+      
+      // Check for bullet points
+      const bulletMatch = line.match(/^[\-\*\+]\s+(.*)$/);
+      const numberMatch = line.match(/^\d+\.\s+(.*)$/);
+      
+      if (headerMatch) {
+        // Header found - close paragraph and list, add header
+        if (currentParagraph) {
+          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          currentParagraph = '';
+        }
+        if (inList) {
+          processedLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        
+        // Convert markdown header to HTML
+        const level = headerMatch[1].length;
+        const text = headerMatch[2];
+        const marginTop = level === 1 ? '1.5em' : level === 2 ? '1.2em' : '1em';
+        const marginBottom = level === 1 ? '0.7em' : level === 2 ? '0.6em' : '0.5em';
+        
+        processedLines.push(`<h${level} style="margin: ${marginTop} 0 ${marginBottom} 0;">${text}</h${level}>`);
+      } else if (bulletMatch) {
+        // Close any open paragraph
+        if (currentParagraph) {
+          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          currentParagraph = '';
+        }
+        
+        if (!inList || listType !== 'ul') {
+          if (inList) processedLines.push(`</${listType}>`);
+          processedLines.push('<ul style="margin: 0.5em 0; padding-left: 2em;">');
+          inList = true;
+          listType = 'ul';
+        }
+        processedLines.push(`<li style="margin: 0.2em 0;">${bulletMatch[1]}</li>`);
+      } else if (numberMatch) {
+        // Close any open paragraph
+        if (currentParagraph) {
+          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          currentParagraph = '';
+        }
+        
+        if (!inList || listType !== 'ol') {
+          if (inList) processedLines.push(`</${listType}>`);
+          processedLines.push('<ol style="margin: 0.5em 0; padding-left: 2em;">');
+          inList = true;
+          listType = 'ol';
+        }
+        processedLines.push(`<li style="margin: 0.2em 0;">${numberMatch[1]}</li>`);
+      } else if (line === '') {
+        // Empty line - end current paragraph if exists
+        if (currentParagraph) {
+          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          currentParagraph = '';
+        }
+        // Close any open list
+        if (inList) {
+          processedLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+      } else if (line.match(/^```/) || line.includes('```')) {
+        // Code block - close paragraph and list, add code block as-is
+        if (currentParagraph) {
+          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          currentParagraph = '';
+        }
+        if (inList) {
+          processedLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        processedLines.push(line);
+      } else {
+        // Regular text line
+        if (inList) {
+          processedLines.push(`</${listType}>`);
+          inList = false;
+          listType = '';
+        }
+        
+        // Add to current paragraph
+        if (currentParagraph) {
+          currentParagraph += ' ' + line;
+        } else {
+          currentParagraph = line;
+        }
+      }
+    }
     
-    // Handle numbered lists
-    html = html.replace(/^\d+\. (.*)$/gim, '<li>$1</li>');
+    // Close any remaining paragraph or list
+    if (currentParagraph) {
+      processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+    }
+    if (inList) {
+      processedLines.push(`</${listType}>`);
+    }
+    
+    html = processedLines.join('');
+
+    // Now apply other formatting to the structured HTML
+    html = html
+      // Bold and italic (handle nested formatting)
+      .replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      // Code blocks (handle multi-line)
+      .replace(/```[\s\S]*?```/gim, (match) => {
+        const content = match.replace(/```/g, '').trim();
+        return `<pre style="background: #f4f4f4; padding: 1em; border-radius: 4px; overflow-x: auto; margin: 1em 0;"><code>${content}</code></pre>`;
+      })
+      // Inline code
+      .replace(/`(.*?)`/gim, '<code style="background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-family: monospace;">$1</code>')
+      // Images (must come before links)
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width: 100%; height: auto; margin: 0.5em 0;">')
+      // Links
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" style="color: #007acc; text-decoration: none;">$1</a>');
     
     return html;
   }
