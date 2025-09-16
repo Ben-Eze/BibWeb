@@ -79,7 +79,7 @@ export function setupNodeOverlays(network, nodes, edges) {
     
     el.innerHTML = `
         <div class="node-overlay__card">
-          <button class="node-overlay__title" title="${escapeHtml(node.title || '')}" style="width: 100%; text-align: left; background: none; border: none; padding: calc(8px * var(--zoom-scale,1)) calc(12px * var(--zoom-scale,1)); cursor: pointer; pointer-events: none;" onmouseover="if(this.closest('.node-overlay').classList.contains('is-selected')) this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+          <button class="node-overlay__title" title="Edit" style="width: 100%; text-align: left; background: none; border: none; padding: calc(8px * var(--zoom-scale,1)) calc(12px * var(--zoom-scale,1)); cursor: pointer; pointer-events: none;" onmouseover="if(this.closest('.node-overlay').classList.contains('is-selected')) this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
             <div class="node-overlay__titleText">${escapeHtml(node.title || '')}</div>
             ${node.authors ? `<div class="node-overlay__authors">${escapeHtml(node.authors)}</div>` : ''}
           </button>
@@ -90,8 +90,8 @@ export function setupNodeOverlays(network, nodes, edges) {
             </div>
           </div>
           <div class="node-overlay__toolbar">
-          <button class="btn-edit" title="Edit node">✏️</button>
-          <button class="btn-del" title="Delete node">🗑️</button>
+          <button class="btn-edit" title="Edit notes">✏️</button>
+          <button class="btn-del" title="Delete">🗑️</button>
         </div>
       </div>
     `;
@@ -309,7 +309,10 @@ export function setupNodeOverlays(network, nodes, edges) {
   // removed bottom-toolbar add handler (using floating add instead)
     toolbar.querySelector('.btn-edit').addEventListener('click', (e) => {
       e.stopPropagation();
-      // Do nothing - edit functionality moved to title button
+      // Switch to notes editing mode (fullscreen editor)
+      if (window._switchToNotesMode) {
+        window._switchToNotesMode(node.id);
+      }
     });
 
     toolbar.querySelector('.btn-del').addEventListener('click', (e) => {
