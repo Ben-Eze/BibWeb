@@ -123,6 +123,7 @@ body {
 .node-overlay__card {
         width: 100%;
         height: 100%;
+        max-height: 100%;
         background: #97C2FC; /* default background */
         border: 1px solid #2B7CE9; /* default border */
         border-radius: 6px;
@@ -133,6 +134,7 @@ body {
         box-sizing: border-box;
         color: #1f1f1f;
         transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+        min-height: 0;
 }
 
 .node-overlay__title {
@@ -183,14 +185,16 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    /* margin only on the outside */
-    margin: 2px 8px;
+    /* Remove margin that adds to height */
+    margin: 0 8px;
     padding: 0;
-    /* gap: 0; */
     border-radius: 6px;
     background: rgba(255,255,255,0.8);
     height: 100%;
+    max-height: 100%;
     box-sizing: border-box;
+    flex: 1;
+    min-height: 0;
 }
 
 .node-overlay__content div {
@@ -204,6 +208,18 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Notes section styling for selected mode */
+.notes-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .viewer-container {
@@ -515,37 +531,32 @@ body {
 
 /* Notes Editor Styles */
 .notes-container {
-    position: relative;
-    min-height: calc(40px * var(--zoom-scale, 1));
-    border-radius: calc(4px * var(--zoom-scale, 1));
+    flex: 1;
+    min-height: 0;
     background: rgba(255, 255, 255, 0.95);
-    padding: calc(8px * var(--zoom-scale, 1));
-    margin: calc(4px * var(--zoom-scale, 1)) 0;
+    border-radius: calc(4px * var(--zoom-scale, 1));
 }
 
 /* Compact preview mode - just show rendered notes */
 .notes-container.preview-mode {
-    padding: calc(4px * var(--zoom-scale, 1)) calc(8px * var(--zoom-scale, 1));
-    min-height: calc(20px * var(--zoom-scale, 1));
+    padding: calc(8px * var(--zoom-scale, 1));
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .notes-container.preview-mode .notes-view {
-    font-size: calc(9px * var(--zoom-scale, 1));
-    line-height: 1.2;
-    max-height: calc(40px * var(--zoom-scale, 1));
-    overflow: hidden;
-    position: relative;
+    font-size: calc(16px * var(--zoom-scale, 1));
+    line-height: 1.4;
+    flex: 1;
+    overflow-y: auto;
+    text-align: left;
+    color: #333;
 }
 
+/* Remove the fade-out gradient for preview mode */
 .notes-container.preview-mode .notes-view::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: calc(10px * var(--zoom-scale, 1));
-    background: linear-gradient(transparent, rgba(255, 255, 255, 0.95));
-    pointer-events: none;
+    display: none;
 }
 
 .notes-container.preview-mode .notes-edit-btn {

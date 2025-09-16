@@ -79,10 +79,10 @@ export function setupNodeOverlays(network, nodes, edges) {
     
     el.innerHTML = `
         <div class="node-overlay__card">
-          <div class="node-overlay__title" title="${escapeHtml(node.title || '')}">
+          <button class="node-overlay__title" title="${escapeHtml(node.title || '')}" style="width: 100%; text-align: left; background: none; border: none; padding: calc(8px * var(--zoom-scale,1)) calc(12px * var(--zoom-scale,1)); cursor: pointer; pointer-events: none;" onmouseover="if(this.closest('.node-overlay').classList.contains('is-selected')) this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
             <div class="node-overlay__titleText">${escapeHtml(node.title || '')}</div>
             ${node.authors ? `<div class="node-overlay__authors">${escapeHtml(node.authors)}</div>` : ''}
-          </div>
+          </button>
           <div class="node-overlay__spacer">
             <div class="node-overlay__content">
               <div class="viewer-container">${viewerContent}</div>
@@ -100,9 +100,81 @@ export function setupNodeOverlays(network, nodes, edges) {
     const notesSection = el.querySelector('.notes-section');
     const notesContainer = notesEditor.createNotesContainer(node.id, node.notes || '', 'preview');
     notesSection.appendChild(notesContainer);
-    // Toolbar needs pointer events
+  // Toolbar needs pointer events
   const toolbar = el.querySelector('.node-overlay__toolbar');
   toolbar.style.pointerEvents = 'auto';
+  
+  // Title button needs pointer events and edit functionality (only when selected)
+  const titleButton = el.querySelector('.node-overlay__title');
+  
+  // Function to update title button state based on selection
+  const updateTitleButtonState = () => {
+    const isSelected = el.classList.contains('is-selected');
+    if (isSelected) {
+      titleButton.style.pointerEvents = 'auto';
+      titleButton.style.cursor = 'pointer';
+    } else {
+      titleButton.style.pointerEvents = 'none';
+      titleButton.style.cursor = 'default';
+      titleButton.style.textDecoration = 'none';
+    }
+  };
+  
+  // Initial state
+  updateTitleButtonState();
+  
+  // Update state when selection changes (we'll need to call this from selection logic)
+  el._updateTitleButtonState = updateTitleButtonState;
+  
+  titleButton.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Only work if selected
+    if (!el.classList.contains('is-selected')) return;
+    
+    const n = nodes.get(node.id);
+    
+    if (window._showPaperForm) {
+      window._showPaperForm('edit', n, (formData) => {
+        n.title = formData.title;
+        n.nickname = formData.nickname;
+        n.authors = formData.authors;
+        n.doi = formData.doi;
+        n.link = formData.link;
+        n.notes = formData.notes;
+        n.type = formData.type;
+        n.label = '';
+        nodes.update(n);
+        
+        // update overlay title/authors now
+        const titleEl = el.querySelector('.node-overlay__title');
+        const titleTextEl = titleEl.querySelector('.node-overlay__titleText');
+        const authorsEl = titleEl.querySelector('.node-overlay__authors');
+        
+        titleTextEl.textContent = n.title || '';
+        titleEl.title = n.title || '';
+        
+        if (authorsEl) {
+          if (n.authors) {
+            authorsEl.textContent = n.authors;
+            authorsEl.style.display = '';
+          } else {
+            authorsEl.style.display = 'none';
+          }
+        } else if (n.authors) {
+          const newAuthorsEl = document.createElement('div');
+          newAuthorsEl.className = 'node-overlay__authors';
+          newAuthorsEl.textContent = n.authors;
+          titleEl.appendChild(newAuthorsEl);
+        }
+        
+        // Re-create viewer content if type/link changed
+        const viewerContainer = el.querySelector('.viewer-container');
+        if (viewerContainer) {
+          viewerContainer.innerHTML = createViewerContent(n);
+        }
+      });
+    }
+  });
   // hide toolbar by default; it will be shown when the node is selected
   // visibility is primarily controlled by CSS class .is-selected
 
@@ -237,83 +309,9 @@ export function setupNodeOverlays(network, nodes, edges) {
   // removed bottom-toolbar add handler (using floating add instead)
     toolbar.querySelector('.btn-edit').addEventListener('click', (e) => {
       e.stopPropagation();
-      const n = nodes.get(node.id);
-      
-      if (window._showPaperForm) {
-        window._showPaperForm('edit', n, (formData) => {
-          n.title = formData.title;
-          n.nickname = formData.nickname;
-          n.authors = formData.authors;
-          n.doi = formData.doi;
-          n.link = formData.link;
-          n.notes = formData.notes;
-          n.type = formData.type;
-          n.label = '';
-          nodes.update(n);
-          
-          // update overlay title/authors now
-          const titleEl = el.querySelector('.node-overlay__title');
-          const titleTextEl = el.querySelector('.node-overlay__titleText');
-          const authorsEl = el.querySelector('.node-overlay__authors');
-          const viewerContainer = el.querySelector('.viewer-container');
-          
-          titleEl.setAttribute('title', escapeHtml(n.title));
-          if (titleTextEl) titleTextEl.textContent = n.title || '';
-          if (authorsEl) {
-            if (n.authors) { authorsEl.textContent = n.authors; }
-            else { authorsEl.remove(); }
-          } else if (n.authors) {
-            const a = document.createElement('div');
-            a.className = 'node-overlay__authors';
-            a.textContent = n.authors;
-            titleEl.appendChild(a);
-          }
-          
-          // Update viewer content
-          if (viewerContainer) {
-            viewerContainer.innerHTML = createViewerContent(n);
-          }
-          
-          // Update notes display
-          const notesSection = el.querySelector('.notes-section');
-          if (notesSection) {
-            const isNotesMode = el.classList.contains('notes-mode');
-            const mode = isNotesMode ? 'edit' : 'preview';
-            notesSection.innerHTML = '';
-            const notesContainer = notesEditor.createNotesContainer(n.id, n.notes || '', mode);
-            notesSection.appendChild(notesContainer);
-          }
-          
-          if (typeof window._saveToStorage === 'function') window._saveToStorage();
-        });
-      } else {
-        // Fallback to old prompt method
-        const title = prompt('Edit title:', n.title || '');
-        if (!title || !title.trim()) return;
-        const authors = prompt('Edit authors:', n.authors || '') || '';
-        n.title = title.trim();
-        n.authors = authors.trim();
-        n.label = '';
-        nodes.update(n);
-        
-        // update overlay title/authors now
-        const titleEl = el.querySelector('.node-overlay__title');
-        const titleTextEl = el.querySelector('.node-overlay__titleText');
-        const authorsEl = el.querySelector('.node-overlay__authors');
-        titleEl.setAttribute('title', escapeHtml(n.title));
-        if (titleTextEl) titleTextEl.textContent = n.title || '';
-        if (authorsEl) {
-          if (n.authors) { authorsEl.textContent = n.authors; }
-          else { authorsEl.remove(); }
-        } else if (n.authors) {
-          const a = document.createElement('div');
-          a.className = 'node-overlay__authors';
-          a.textContent = n.authors;
-          titleEl.appendChild(a);
-        }
-        if (typeof window._saveToStorage === 'function') window._saveToStorage();
-      }
+      // Do nothing - edit functionality moved to title button
     });
+
     toolbar.querySelector('.btn-del').addEventListener('click', (e) => {
       e.stopPropagation();
       const n = nodes.get(node.id);
@@ -449,14 +447,22 @@ export function setupNodeOverlays(network, nodes, edges) {
 
   // Selection handling: show toolbar only for selected nodes
   function hideAllToolbars() {
-    overlayMap.forEach((el) => el.classList.remove('is-selected'));
+    overlayMap.forEach((el) => {
+      el.classList.remove('is-selected');
+      // Update title button state when deselected
+      if (el._updateTitleButtonState) el._updateTitleButtonState();
+    });
   }
   network.on('selectNode', (params) => {
     hideAllToolbars();
     if (params && Array.isArray(params.nodes)) {
       params.nodes.forEach((id) => {
         const el = overlayMap.get(id);
-        if (el) el.classList.add('is-selected');
+        if (el) {
+          el.classList.add('is-selected');
+          // Update title button state when selected
+          if (el._updateTitleButtonState) el._updateTitleButtonState();
+        }
       });
     }
   });

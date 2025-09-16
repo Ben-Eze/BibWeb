@@ -4,3 +4,5 @@ The first one will contain a pdf viewer so you can view the paper. the pdf is ei
 Then the second 
 
 In the nodeOverlay, if a url is provided replace the placeholder text 'paper' either with a youtube embedding or a pdf viewer, depending on the 
+
+The button to enter notes mode is gone. That's good - I didn't like it being a button - but I still need the functionality. Can you make it go into edit mode by clicking on the outer border
