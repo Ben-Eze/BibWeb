@@ -259,6 +259,7 @@ export function setupNetwork() {
 	// Expose for toolbar.js
 	window._addOrGetPaper = addOrGetPaper;
 	window._saveToStorage = saveToStorage;
+	window._setupNodeOverlays = () => setupNodeOverlays(network, nodes, edges);
 
 	setupEdgeToolbar(network, nodes, edges);
 	// Replace labels with overlays

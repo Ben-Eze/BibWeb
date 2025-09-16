@@ -36,6 +36,10 @@ export function setupDocumentToolbar(network, nodes, edges) {
       if (container) {
         while (container.firstChild) container.removeChild(container.firstChild);
       }
+      // Reinitialize node overlays after clearing
+      if (window._setupNodeOverlays) {
+        window._setupNodeOverlays();
+      }
       window._saveToStorage();
       network.fit();
     }
