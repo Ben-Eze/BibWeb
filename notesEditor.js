@@ -32,6 +32,12 @@ export class NotesEditor {
     closeBtn.innerHTML = '✕';
     closeBtn.title = 'Close editor';
 
+    const saveIndicator = document.createElement('div');
+    saveIndicator.className = 'fullscreen-editor__save-indicator';
+    saveIndicator.innerHTML = '✓';
+    saveIndicator.title = 'Auto-saved';
+    closeBtn.appendChild(saveIndicator);
+
     titleSection.appendChild(title);
     titleSection.appendChild(authors);
     header.appendChild(titleSection);
@@ -45,10 +51,10 @@ export class NotesEditor {
     const viewer = document.createElement('div');
     viewer.className = 'fullscreen-editor__viewer';
     
-    if (nodeData.url) {
-      const iframe = document.createElement('iframe');
-      iframe.src = nodeData.url;
-      viewer.appendChild(iframe);
+    if (nodeData.link) {
+      // Use the same viewer content logic as the regular overlay
+      const viewerContent = this.createViewerContent(nodeData);
+      viewer.innerHTML = viewerContent;
     } else {
       viewer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No document to preview</div>';
     }
@@ -145,6 +151,15 @@ export class NotesEditor {
     const autoSave = () => {
       const content = editor ? editor.getMarkdown() : '';
       this.updateNodeNotes(nodeId, content);
+      
+      // Show save indicator
+      const indicator = document.querySelector('.fullscreen-editor__save-indicator');
+      if (indicator) {
+        indicator.classList.add('show');
+        setTimeout(() => {
+          indicator.classList.remove('show');
+        }, 1500); // Show for 1.5 seconds
+      }
     };
 
     // Auto-save on content change with debouncing
@@ -388,6 +403,15 @@ export class NotesEditor {
     // Set up auto-save for textarea
     const autoSave = () => {
       this.updateNodeNotes(nodeId, textarea.value);
+      
+      // Show save indicator
+      const indicator = document.querySelector('.fullscreen-editor__save-indicator');
+      if (indicator) {
+        indicator.classList.add('show');
+        setTimeout(() => {
+          indicator.classList.remove('show');
+        }, 1500);
+      }
     };
 
     let autoSaveTimeout;
@@ -551,5 +575,57 @@ export class NotesEditor {
       return window._getNodeNotes(nodeId);
     }
     return '';
+  }
+
+  createViewerContent(node) {
+    if (!node.link) {
+      return '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No document link</div>';
+    }
+
+    if (node.type === 'video' && this.isYouTubeUrl(node.link)) {
+      const videoId = this.extractYouTubeId(node.link);
+      if (videoId) {
+        return `<iframe 
+          src="https://www.youtube.com/embed/${videoId}" 
+          width="100%" 
+          height="100%" 
+          frameborder="0" 
+          allowfullscreen>
+        </iframe>`;
+      }
+    } else if (node.type === 'paper' && this.isPdfUrl(node.link)) {
+      return `<iframe 
+        src="${this.escapeHtml(node.link)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
+        width="100%" 
+        height="100%" 
+        frameborder="0">
+      </iframe>`;
+    }
+    
+    // Fallback for other links
+    return `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+      <a href="${this.escapeHtml(node.link)}" target="_blank" rel="noopener noreferrer" style="color: #007acc; text-decoration: none;">
+        Open Document: ${this.escapeHtml(node.title || node.link)}
+      </a>
+    </div>`;
+  }
+
+  isYouTubeUrl(url) {
+    return /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/.test(url);
+  }
+
+  extractYouTubeId(url) {
+    const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    return match ? match[1] : null;
+  }
+
+  isPdfUrl(url) {
+    return /\.pdf(\?.*)?$/i.test(url) || url.includes('pdf');
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 }

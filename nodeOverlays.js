@@ -502,6 +502,18 @@ export function setupNodeOverlays(network, nodes, edges) {
       node.notes = notes;
       nodes.update(node);
       if (typeof window._saveToStorage === 'function') window._saveToStorage();
+      
+      // Update the notes display in the overlay if it exists and is visible
+      const overlay = overlayMap.get(nodeId);
+      if (overlay) {
+        const notesSection = overlay.querySelector('.notes-section');
+        if (notesSection) {
+          // Recreate the notes container with updated content
+          notesSection.innerHTML = '';
+          const notesContainer = notesEditor.createNotesContainer(nodeId, notes, 'preview');
+          notesSection.appendChild(notesContainer);
+        }
+      }
     }
   };
 
@@ -524,7 +536,8 @@ export function setupNodeOverlays(network, nodes, edges) {
         notesEditor.enterFullscreenEditor(nodeId, {
           title: nodeData.title || 'Untitled Document',
           authors: nodeData.authors || '',
-          url: nodeData.url || '',
+          link: nodeData.link || '',
+          type: nodeData.type || 'paper',
           notes: currentNotes
         });
       }
