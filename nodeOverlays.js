@@ -435,6 +435,12 @@ export function setupNodeOverlays(network, nodes, edges) {
   function updateZoomVar() {
     const s = network.getScale ? network.getScale() : 1;
     container.style.setProperty('--zoom-scale', String(s));
+    
+    // Also update zoom scale for any notes-mode overlays
+    const notesModeOverlays = container.querySelectorAll('.node-overlay.notes-mode');
+    notesModeOverlays.forEach(overlay => {
+      overlay.style.setProperty('--zoom-scale', String(s));
+    });
   }
   network.on('afterDrawing', () => { reposition(); updateZoomVar(); });
   network.on('dragEnd', reposition);
@@ -508,73 +514,26 @@ export function setupNodeOverlays(network, nodes, edges) {
   window._switchToNotesMode = (nodeId) => {
     const el = overlayMap.get(nodeId);
     if (el) {
-      // Resize the node to landscape dimensions for notes mode
-      const notesMode = window._NOTES_MODE || { WIDTH: 600, HEIGHT: 300 };
-      nodes.update({
-        id: nodeId,
-        widthConstraint: { minimum: notesMode.WIDTH, maximum: notesMode.WIDTH },
-        heightConstraint: { minimum: notesMode.HEIGHT },
-        font: { size: 16 }
-      });
-      
-      el.classList.add('notes-mode');
-      
-      // Add close button
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'notes-close-btn';
-      closeBtn.innerHTML = '✕';
-      closeBtn.title = 'Close notes editor';
-      closeBtn.style.pointerEvents = 'auto';
-      closeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        window._switchToPreviewMode(nodeId);
-      });
-      
-      const card = el.querySelector('.node-overlay__card');
-      card.appendChild(closeBtn);
-      
-      // Recreate notes container in editing mode
-      const notesSection = el.querySelector('.notes-section');
-      const currentNotes = window._getNodeNotes(nodeId);
-      notesSection.innerHTML = '';
-      const notesContainer = notesEditor.createNotesContainer(nodeId, currentNotes, 'edit');
-      notesSection.appendChild(notesContainer);
-      // Auto-start editing
-      setTimeout(() => {
-        notesEditor.startEditing(nodeId, notesContainer, currentNotes);
-      }, 100);
+      // Get node data for the fullscreen editor
+      const nodeData = nodes.get(nodeId);
+      if (nodeData) {
+        // Get current notes
+        const currentNotes = window._getNodeNotes(nodeId);
+        
+        // Create fullscreen editor
+        notesEditor.enterFullscreenEditor(nodeId, {
+          title: nodeData.title || 'Untitled Document',
+          authors: nodeData.authors || '',
+          url: nodeData.url || '',
+          notes: currentNotes
+        });
+      }
     }
   };
 
   window._switchToPreviewMode = (nodeId) => {
-    const el = overlayMap.get(nodeId);
-    if (el) {
-      // Restore original selected dimensions (400x565 A4 aspect ratio)
-      nodes.update({
-        id: nodeId,
-        widthConstraint: { minimum: 400, maximum: 400 },
-        heightConstraint: { minimum: Math.round(400 * 1.414) },
-        font: { size: 16 }
-      });
-      
-      el.classList.remove('notes-mode');
-      
-      // Remove close button
-      const closeBtn = el.querySelector('.notes-close-btn');
-      if (closeBtn) {
-        closeBtn.remove();
-      }
-      
-      // Recreate notes container in preview mode
-      const notesSection = el.querySelector('.notes-section');
-      const currentNotes = window._getNodeNotes(nodeId);
-      notesSection.innerHTML = '';
-      const notesContainer = notesEditor.createNotesContainer(nodeId, currentNotes, 'preview');
-      notesSection.appendChild(notesContainer);
-      
-      // Restore normal positioning
-      updatePositions();
-    }
+    // Exit fullscreen editor mode
+    notesEditor.exitFullscreenEditor(nodeId);
   };
 
   function escapeHtml(s) {

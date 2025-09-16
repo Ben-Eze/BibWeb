@@ -38,6 +38,12 @@ body {
     background: rgba(255, 255, 255, 0.9);
     border-radius: 0; /* remove radius since full width */
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+/* Hide toolbar when in full-screen editor mode */
+#documentToolbar.hidden {
+    transform: translateY(-100%);
 }
 
 .toolbar-section {
@@ -510,23 +516,23 @@ body {
 /* Notes Editor Styles */
 .notes-container {
     position: relative;
-    min-height: 40px;
-    border-radius: 4px;
+    min-height: calc(40px * var(--zoom-scale, 1));
+    border-radius: calc(4px * var(--zoom-scale, 1));
     background: rgba(255, 255, 255, 0.95);
-    padding: 8px;
-    margin: 4px 0;
+    padding: calc(8px * var(--zoom-scale, 1));
+    margin: calc(4px * var(--zoom-scale, 1)) 0;
 }
 
 /* Compact preview mode - just show rendered notes */
 .notes-container.preview-mode {
-    padding: 4px 8px;
-    min-height: 20px;
+    padding: calc(4px * var(--zoom-scale, 1)) calc(8px * var(--zoom-scale, 1));
+    min-height: calc(20px * var(--zoom-scale, 1));
 }
 
 .notes-container.preview-mode .notes-view {
-    font-size: 9px;
+    font-size: calc(9px * var(--zoom-scale, 1));
     line-height: 1.2;
-    max-height: 40px;
+    max-height: calc(40px * var(--zoom-scale, 1));
     overflow: hidden;
     position: relative;
 }
@@ -537,156 +543,148 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 10px;
+    height: calc(10px * var(--zoom-scale, 1));
     background: linear-gradient(transparent, rgba(255, 255, 255, 0.95));
     pointer-events: none;
 }
 
 .notes-container.preview-mode .notes-edit-btn {
-    top: 2px;
-    right: 2px;
-    padding: 1px 4px;
-    font-size: 8px;
+    top: calc(2px * var(--zoom-scale, 1));
+    right: calc(2px * var(--zoom-scale, 1));
+    padding: calc(1px * var(--zoom-scale, 1)) calc(4px * var(--zoom-scale, 1));
+    font-size: calc(8px * var(--zoom-scale, 1));
 }
 
-/* Split editing mode */
-.node-overlay.notes-mode {
+/* Full-screen editor mode */
+.fullscreen-editor {
     position: fixed !important;
-    top: 80px; /* Below main toolbar */
-    left: 5%;
-    width: 90%;
-    height: 60vh; /* Much shorter height for landscape */
-    z-index: 1000;
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
-
-.node-overlay.notes-mode .node-overlay__card {
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.node-overlay.notes-mode .node-overlay__content {
-    flex-direction: row;
-    gap: 0;
-    height: calc(100% - 80px); /* Account for title area */
-}
-
-.node-overlay.notes-mode .viewer-container {
-    flex: 1;
-    max-width: 50%;
-    border-right: 1px solid #ddd;
-}
-
-.node-overlay.notes-mode .notes-section {
-    flex: 1;
-    max-width: 50%;
-    display: flex;
-    flex-direction: column;
-}
-
-.node-overlay.notes-mode .notes-container {
-    height: 100%;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    border-radius: 0;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
     background: white;
-}
-
-.node-overlay.notes-mode .notes-edit {
-    flex: 1;
     display: flex;
     flex-direction: column;
+    padding: 1rem;
+    box-sizing: border-box;
 }
 
-.node-overlay.notes-mode .notes-editor {
+.fullscreen-editor__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+.fullscreen-editor__title-section {
     flex: 1;
-    min-height: 200px;
 }
 
-/* Close button for notes mode */
-.node-overlay.notes-mode .notes-close-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(255, 255, 255, 0.9);
+.fullscreen-editor__title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+}
+
+.fullscreen-editor__authors {
+    font-size: 16px;
+    color: #666;
+    margin: 0;
+}
+
+.fullscreen-editor__close {
+    background: #f5f5f5;
     border: 1px solid #ddd;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10;
-    pointer-events: auto;
+    color: #666;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
-.node-overlay.notes-mode .notes-close-btn:hover {
-    background: white;
+.fullscreen-editor__close:hover {
+    background: #e9ecef;
+    color: #333;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Hide regular toolbar in notes mode */
-.node-overlay.notes-mode .node-overlay__toolbar {
-    display: none;
+.fullscreen-editor__content {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+    min-height: 0;
 }
 
-/* Hide floating buttons in notes mode */
-.node-overlay.notes-mode .node-overlay__btnLockFloating,
-.node-overlay.notes-mode .node-overlay__btnAddFloating {
-    display: none;
+.fullscreen-editor__viewer {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Responsive scaling for landscape notes mode */
-.node-overlay.notes-mode .node-overlay__title {
-    padding: 8px 16px; /* Reduced padding for landscape */
-    border-bottom: 1px solid #ddd;
+.fullscreen-editor__viewer iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    flex: 1;
 }
 
-.node-overlay.notes-mode .node-overlay__titleText {
-    font-size: 16px; /* Slightly smaller for landscape */
-    font-weight: bold;
+.fullscreen-editor__editor {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+    display: flex;
+    flex-direction: column;
 }
 
-.node-overlay.notes-mode .node-overlay__authors {
-    font-size: 12px; /* Smaller authors text */
-    margin-top: 2px;
-}
-
-.node-overlay.notes-mode .viewer-container iframe {
-    border-radius: 0;
-}
-
-.node-overlay.notes-mode .notes-view {
-    font-size: 14px;
-    line-height: 1.5;
-    padding: 16px;
-    max-height: none;
-    overflow-y: auto;
-}
-
-.node-overlay.notes-mode .notes-controls {
-    padding: 12px 16px;
-    border-top: 1px solid #ddd;
-    background: #f8f9fa;
-}
-
-/* Toast UI Editor scaling in landscape mode */
-.node-overlay.notes-mode .toastui-editor-defaultUI {
+.fullscreen-editor__editor .notes-editor {
+    flex: 1;
+    width: 100%;
+    height: 100%;
     border: none;
     border-radius: 0;
 }
 
-.node-overlay.notes-mode .toastui-editor .ProseMirror {
-    font-size: 14px;
+.fullscreen-editor__editor .toastui-editor-defaultUI {
+    border: none;
+    border-radius: 0;
+    height: 100%;
+}
+
+.fullscreen-editor__editor .toastui-editor-toolbar {
+    background: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+}
+
+.fullscreen-editor__editor .toastui-editor .ProseMirror {
+    padding: 20px;
+    font-size: 16px;
     line-height: 1.6;
-    padding: 16px;
+}
+
+/* Hide network overlay container when in fullscreen mode */
+body.fullscreen-editor-active #nodeOverlayContainer {
+    display: none;
+}
+
+body.fullscreen-editor-active #network {
+    pointer-events: none;
 }
 
 .notes-view {
@@ -727,6 +725,10 @@ body {
 
 .notes-edit {
     position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .notes-editor {
@@ -736,6 +738,13 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 120px;
+    height: 100%;
+    order: 2; /* Middle position */
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
 }
 
 .notes-textarea {
@@ -751,14 +760,7 @@ body {
 }
 
 .notes-controls {
-    display: flex;
-    gap: 4px;
-    margin-top: 8px;
-    justify-content: flex-end;
-    flex-shrink: 0;
-    padding: 8px;
-    border-top: 1px solid #ddd;
-    background: #f8f9fa;
+    display: none; /* Hidden in new editor mode */
 }
 
 .notes-save-btn, .notes-cancel-btn {
@@ -809,34 +811,149 @@ body {
     display: none !important;
 }
 
-/* Toast UI Editor customization */
+/* Toast UI Editor - Clean Single Block Configuration */
 .toastui-editor-defaultUI {
     border: 1px solid #ddd;
     border-radius: 4px;
     width: 100% !important;
     height: 100% !important;
-    display: flex;
-    flex-direction: column;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
 }
 
 .toastui-editor-defaultUI .toastui-editor {
     width: 100% !important;
     height: 100% !important;
-    flex: 1;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
+/* Hide all mode switching and markdown elements */
+.toastui-editor-mode-switch,
+.toastui-editor-tab,
+.toastui-editor-md-container,
+.toastui-editor-md-mode,
+.toastui-editor-md-preview,
+.toastui-editor-md-preview-style-tab,
+.toastui-editor-md-preview-style-vertical,
+.toastui-editor-md-splitter {
+    display: none !important;
+}
+
+/* Main editor container */
 .toastui-editor-main {
     width: 100% !important;
     height: 100% !important;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
-.toastui-editor-md-mode {
+/* WYSIWYG mode - the only visible editor */
+.toastui-editor-ww-mode {
     width: 100% !important;
     height: 100% !important;
-    flex: 1;
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Toolbar styling */
+.toastui-editor-toolbar {
+    border-bottom: 1px solid #ddd;
+    padding: 4px 8px !important;
+    background: #f8f9fa;
+    flex-shrink: 0 !important;
+    height: auto !important;
+    min-height: 32px !important;
+}
+
+.toastui-editor-toolbar-group {
+    margin: 0 4px !important;
+}
+
+.toastui-editor-toolbar-icons {
+    height: 24px !important;
+    width: 24px !important;
+    padding: 2px !important;
+    margin: 1px !important;
+}
+
+/* Content area - the actual text editor */
+.toastui-editor-contents {
+    width: 100% !important;
+    height: 100% !important;
+    flex: 1 !important;
+    padding: 12px !important;
+    border: none !important;
+    outline: none !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    overflow-y: auto !important;
+    background: white !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    min-height: 100px !important;
+}
+
+/* Ensure contenteditable behavior */
+.toastui-editor-contents[contenteditable="true"] {
+    outline: none !important;
+    border: none !important;
+}
+
+/* Handle paragraph breaks properly */
+.toastui-editor-contents div,
+.toastui-editor-contents p {
+    margin: 0 0 8px 0 !important;
+    line-height: 1.6 !important;
+    min-height: 1.6em !important;
+}
+
+/* Empty paragraphs should still have height */
+.toastui-editor-contents div:empty,
+.toastui-editor-contents p:empty {
+    min-height: 1.6em !important;
+}
+
+/* Focus state */
+.toastui-editor-contents:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Editor content styling */
+.toastui-editor-contents p {
+    margin: 0 0 8px 0 !important;
+    line-height: 1.6 !important;
+}
+
+.toastui-editor-contents h1,
+.toastui-editor-contents h2,
+.toastui-editor-contents h3 {
+    margin: 16px 0 8px 0 !important;
+}
+
+.toastui-editor-contents ul,
+.toastui-editor-contents ol {
+    margin: 8px 0 !important;
+    padding-left: 20px !important;
+}
+
+.toastui-editor-contents li {
+    margin: 4px 0 !important;
+}
+
+/* Remove any scroll containers that might interfere */
+.toastui-editor-ww-container {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
 }
 
 .toastui-editor-toolbar {
@@ -846,7 +963,25 @@ body {
 }
 
 .toastui-editor-toolbar .item {
+    margin: 0 1px;
+}
+
+/* Make Toast UI toolbar buttons smaller */
+.toastui-editor-toolbar button {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+    min-width: 20px !important;
+    height: 30px !important;
+    margin: 0 1px !important;
+}
+
+.toastui-editor-toolbar .toastui-editor-toolbar-group {
     margin: 0 2px;
+}
+
+.toastui-editor-toolbar .separator {
+    margin: 0 2px;
+    height: 16px;
 }
 
 .toastui-editor .ProseMirror,
@@ -857,4 +992,40 @@ body {
     width: 100% !important;
     height: 100% !important;
     flex: 1;
+    min-height: 100px !important;
+}
+
+/* Fix line break display in ProseMirror WYSIWYG mode */
+.toastui-editor .ProseMirror {
+    display: block !important;
+    flex-direction: column !important;
+    text-align: left !important;
+}
+
+.toastui-editor .ProseMirror p {
+    display: block !important;
+    margin: 0 0 8px 0 !important;
+    min-height: 1.4em !important;
+    width: 100% !important;
+    text-align: left !important;
+}
+
+.toastui-editor .ProseMirror p:last-child {
+    margin-bottom: 0 !important;
+}
+
+/* Ensure line breaks are visible */
+.toastui-editor .ProseMirror br {
+    line-height: 1.4 !important;
+    content: " " !important;
+}
+
+/* Hide the Write/Preview mode tabs */
+.toastui-editor-mode-switch {
+    display: none !important;
+}
+
+/* Hide the tab section entirely */
+.toastui-editor .te-mode-switch-section {
+    display: none !important;
 }

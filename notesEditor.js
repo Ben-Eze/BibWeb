@@ -3,6 +3,216 @@ export class NotesEditor {
   constructor() {
     this.editors = new Map(); // nodeId -> editor instance
     this.isToastUIAvailable = typeof toastui !== 'undefined';
+    this.autoSaveTimeouts = new Map(); // nodeId -> timeout
+  }
+
+  // Create fullscreen editor mode
+  createFullscreenEditor(nodeId, nodeData) {
+    const container = document.createElement('div');
+    container.className = 'fullscreen-editor';
+    container.dataset.nodeId = nodeId;
+
+    // Header with title, authors, and close button
+    const header = document.createElement('div');
+    header.className = 'fullscreen-editor__header';
+
+    const titleSection = document.createElement('div');
+    titleSection.className = 'fullscreen-editor__title-section';
+
+    const title = document.createElement('h1');
+    title.className = 'fullscreen-editor__title';
+    title.textContent = nodeData.title || 'Untitled Document';
+
+    const authors = document.createElement('div');
+    authors.className = 'fullscreen-editor__authors';
+    authors.textContent = nodeData.authors || '';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'fullscreen-editor__close';
+    closeBtn.innerHTML = '✕';
+    closeBtn.title = 'Close editor';
+
+    titleSection.appendChild(title);
+    titleSection.appendChild(authors);
+    header.appendChild(titleSection);
+    header.appendChild(closeBtn);
+
+    // Main content area with split screen
+    const content = document.createElement('div');
+    content.className = 'fullscreen-editor__content';
+
+    // Viewer section
+    const viewer = document.createElement('div');
+    viewer.className = 'fullscreen-editor__viewer';
+    
+    if (nodeData.url) {
+      const iframe = document.createElement('iframe');
+      iframe.src = nodeData.url;
+      viewer.appendChild(iframe);
+    } else {
+      viewer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No document to preview</div>';
+    }
+
+    // Editor section
+    const editorSection = document.createElement('div');
+    editorSection.className = 'fullscreen-editor__editor';
+
+    const editorEl = document.createElement('div');
+    editorEl.className = 'notes-editor';
+
+    editorSection.appendChild(editorEl);
+    content.appendChild(viewer);
+    content.appendChild(editorSection);
+
+    container.appendChild(header);
+    container.appendChild(content);
+
+    // Event handlers
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.exitFullscreenEditor(nodeId);
+    });
+
+    // Keyboard shortcuts
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        this.exitFullscreenEditor(nodeId);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeydown);
+    
+    // Store handler for cleanup
+    container.setAttribute('data-keydown-handler', 'true');
+    container._keydownHandler = handleKeydown;
+
+    // Initialize editor
+    this.initializeEditor(nodeId, editorEl, nodeData.notes || '');
+
+    return container;
+  }
+
+  initializeEditor(nodeId, editorEl, initialContent) {
+    if (this.isToastUIAvailable && typeof toastui.Editor !== 'undefined') {
+      try {
+        editorEl.innerHTML = '';
+        
+        const editor = new toastui.Editor({
+          el: editorEl,
+          height: '100%',
+          width: '100%',
+          initialEditType: 'wysiwyg',
+          previewStyle: 'tab',
+          hideModeSwitch: true,
+          usageStatistics: false,
+          autofocus: true,
+          placeholder: 'Write your notes here...',
+          initialValue: initialContent || '',
+          toolbarItems: [
+            ['heading', 'bold', 'italic'],
+            ['hr', 'quote'],
+            ['ul', 'ol'],
+            ['link', 'image'],
+            ['code']
+          ],
+          hooks: {
+            addImageBlobHook: (blob, callback) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                callback(reader.result, 'pasted image');
+              };
+              reader.readAsDataURL(blob);
+            }
+          }
+        });
+        
+        editor.changeMode('wysiwyg', true);
+        this.editors.set(nodeId, editor);
+
+        // Set up auto-save
+        this.setupAutoSave(nodeId, editor);
+        
+      } catch (error) {
+        console.error('Toast UI Editor failed to initialize:', error);
+        this.createFallbackTextarea(editorEl, initialContent, nodeId);
+      }
+    } else {
+      this.createFallbackTextarea(editorEl, initialContent, nodeId);
+    }
+  }
+
+  setupAutoSave(nodeId, editor) {
+    const autoSave = () => {
+      const content = editor ? editor.getMarkdown() : '';
+      this.updateNodeNotes(nodeId, content);
+    };
+
+    // Auto-save on content change with debouncing
+    editor.on('change', () => {
+      // Clear existing timeout
+      if (this.autoSaveTimeouts.has(nodeId)) {
+        clearTimeout(this.autoSaveTimeouts.get(nodeId));
+      }
+      
+      // Set new timeout for auto-save
+      const timeout = setTimeout(autoSave, 1000); // Save after 1 second of inactivity
+      this.autoSaveTimeouts.set(nodeId, timeout);
+    });
+
+    // Auto-save on blur (when clicking away)
+    editor.on('blur', autoSave);
+  }
+
+  enterFullscreenEditor(nodeId, nodeData) {
+    // Hide document toolbar
+    const toolbar = document.getElementById('documentToolbar');
+    if (toolbar) {
+      toolbar.classList.add('hidden');
+    }
+
+    // Add body class to hide network interaction
+    document.body.classList.add('fullscreen-editor-active');
+
+    // Create and append fullscreen editor
+    const editor = this.createFullscreenEditor(nodeId, nodeData);
+    document.body.appendChild(editor);
+
+    return editor;
+  }
+
+  exitFullscreenEditor(nodeId) {
+    // Clean up auto-save timeout
+    if (this.autoSaveTimeouts.has(nodeId)) {
+      clearTimeout(this.autoSaveTimeouts.get(nodeId));
+      this.autoSaveTimeouts.delete(nodeId);
+    }
+
+    // Final save before exit
+    const editor = this.editors.get(nodeId);
+    if (editor) {
+      const content = editor.getMarkdown();
+      this.updateNodeNotes(nodeId, content);
+      editor.destroy();
+      this.editors.delete(nodeId);
+    }
+
+    // Remove fullscreen editor and cleanup keyboard handler
+    const editorEl = document.querySelector('.fullscreen-editor');
+    if (editorEl) {
+      if (editorEl._keydownHandler) {
+        document.removeEventListener('keydown', editorEl._keydownHandler);
+      }
+      editorEl.remove();
+    }
+
+    // Show document toolbar
+    const toolbar = document.getElementById('documentToolbar');
+    if (toolbar) {
+      toolbar.classList.remove('hidden');
+    }
+
+    // Remove body class to restore network interaction
+    document.body.classList.remove('fullscreen-editor-active');
   }
 
   createNotesContainer(nodeId, initialContent = '', mode = 'preview') {
@@ -31,21 +241,21 @@ export class NotesEditor {
     editorEl.className = 'notes-editor';
     
     // Control buttons for editor
-    const controlsEl = document.createElement('div');
-    controlsEl.className = 'notes-controls';
+  const controlsEl = document.createElement('div');
+  controlsEl.className = 'notes-controls';
     
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'notes-save-btn';
-    saveBtn.innerHTML = '💾';
-    saveBtn.title = 'Save notes';
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'notes-save-btn';
+  saveBtn.innerHTML = '💾';
+  saveBtn.title = 'Save notes';
     
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'notes-cancel-btn';
-    cancelBtn.innerHTML = '❌';
-    cancelBtn.title = 'Cancel editing';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'notes-cancel-btn';
+  cancelBtn.innerHTML = '❌';
+  cancelBtn.title = 'Cancel editing';
     
-    controlsEl.appendChild(saveBtn);
-    controlsEl.appendChild(cancelBtn);
+  controlsEl.appendChild(saveBtn);
+  controlsEl.appendChild(cancelBtn);
     
     editContainer.appendChild(editorEl);
     editContainer.appendChild(controlsEl);
@@ -95,7 +305,7 @@ export class NotesEditor {
   }
 
   switchToNotesMode(nodeId) {
-    // This will be called to switch the overlay to notes editing mode
+    // This will trigger the fullscreen editor mode
     if (window._switchToNotesMode) {
       window._switchToNotesMode(nodeId);
     }
@@ -121,40 +331,74 @@ export class NotesEditor {
     
     // Initialize Toast UI Editor if available
     if (this.isToastUIAvailable && typeof toastui.Editor !== 'undefined') {
-      const editor = new toastui.Editor({
-        el: editorEl,
-        height: '150px',
-        initialEditType: 'markdown',
-        previewStyle: 'tab',
-        initialValue: currentContent || '',
-        toolbarItems: [
-          ['heading', 'bold', 'italic'],
-          ['hr', 'quote'],
-          ['ul', 'ol', 'task'],
-          ['table', 'image', 'link'],
-          ['code', 'codeblock']
-        ],
-        hooks: {
-          addImageBlobHook: (blob, callback) => {
-            // Handle image paste from clipboard
-            const reader = new FileReader();
-            reader.onload = () => {
-              callback(reader.result, 'pasted image');
-            };
-            reader.readAsDataURL(blob);
+      try {
+        // Clear the editor element first
+        editorEl.innerHTML = '';
+        
+        const editor = new toastui.Editor({
+          el: editorEl,
+          height: '100%',
+          width: '100%',
+          initialEditType: 'wysiwyg',
+          previewStyle: 'tab',
+          hideModeSwitch: true,
+          usageStatistics: false,
+          autofocus: true,
+          placeholder: 'Write your notes here...',
+          initialValue: currentContent || '',
+          toolbarItems: [
+            ['heading', 'bold', 'italic'],
+            ['hr', 'quote'],
+            ['ul', 'ol'],
+            ['link', 'image'],
+            ['code']
+          ],
+          hooks: {
+            addImageBlobHook: (blob, callback) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                callback(reader.result, 'pasted image');
+              };
+              reader.readAsDataURL(blob);
+            }
           }
-        },
-        plugins: [
-          // Add LaTeX plugin if available
-          ...(typeof toastui.Editor.plugin !== 'undefined' && toastui.Editor.plugin.latex ? [toastui.Editor.plugin.latex] : [])
-        ]
-      });
-      
-      this.editors.set(nodeId, editor);
+        });
+        
+        // Force WYSIWYG mode; CSS already hides mode switch & markdown UI
+        editor.changeMode('wysiwyg', true);
+        
+        this.editors.set(nodeId, editor);
+      } catch (error) {
+        console.error('Toast UI Editor failed to initialize:', error);
+        this.createFallbackTextarea(editorEl, currentContent);
+      }
     } else {
-      // Fallback to textarea
-      editorEl.innerHTML = `<textarea class="notes-textarea" placeholder="Write your notes in markdown...">${currentContent || ''}</textarea>`;
+      this.createFallbackTextarea(editorEl, currentContent);
     }
+  }
+
+  createFallbackTextarea(editorEl, currentContent, nodeId) {
+    const textarea = document.createElement('textarea');
+    textarea.className = 'notes-textarea';
+    textarea.placeholder = 'Write your notes in markdown...';
+    textarea.value = currentContent || '';
+    editorEl.innerHTML = '';
+    editorEl.appendChild(textarea);
+
+    // Set up auto-save for textarea
+    const autoSave = () => {
+      this.updateNodeNotes(nodeId, textarea.value);
+    };
+
+    let autoSaveTimeout;
+    textarea.addEventListener('input', () => {
+      if (autoSaveTimeout) {
+        clearTimeout(autoSaveTimeout);
+      }
+      autoSaveTimeout = setTimeout(autoSave, 1000);
+    });
+
+    textarea.addEventListener('blur', autoSave);
   }
 
   saveNotes(nodeId, container) {
@@ -273,6 +517,11 @@ export class NotesEditor {
 
   // Clean up editor instances
   cleanup(nodeId) {
+    if (this.autoSaveTimeouts.has(nodeId)) {
+      clearTimeout(this.autoSaveTimeouts.get(nodeId));
+      this.autoSaveTimeouts.delete(nodeId);
+    }
+    
     const editor = this.editors.get(nodeId);
     if (editor) {
       editor.destroy();
@@ -282,9 +531,25 @@ export class NotesEditor {
 
   // Clean up all editors
   cleanupAll() {
-    this.editors.forEach((editor, nodeId) => {
-      editor.destroy();
-    });
+    this.autoSaveTimeouts.forEach((timeout) => clearTimeout(timeout));
+    this.autoSaveTimeouts.clear();
+    
+    this.editors.forEach((editor) => editor.destroy());
     this.editors.clear();
+  }
+
+  updateNodeNotes(nodeId, content) {
+    // This will be called from the overlay system to update the actual node data
+    if (window._updateNodeNotes) {
+      window._updateNodeNotes(nodeId, content);
+    }
+  }
+
+  getNodeNotes(nodeId) {
+    // This will be called to get current notes from node data
+    if (window._getNodeNotes) {
+      return window._getNodeNotes(nodeId);
+    }
+    return '';
   }
 }
