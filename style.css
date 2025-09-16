@@ -1018,24 +1018,24 @@ body.fullscreen-editor-active #network {
 .toastui-editor-toolbar {
     border-bottom: 1px solid #ddd;
     padding: 4px;
-    flex-shrink: 0;
+    flex-shrink: 5;
 }
 
 .toastui-editor-toolbar .item {
     margin: 0 1px;
 }
 
-/* Make Toast UI toolbar buttons smaller */
+/* Make Toast UI toolbar buttons with better spacing */
 .toastui-editor-toolbar button {
-    padding: 2px 4px !important;
+    padding: 3px 12px !important;
     font-size: 10px !important;
-    min-width: 20px !important;
+    width: 30px !important;
     height: 30px !important;
-    margin: 0 1px !important;
+    margin: 0 3px !important;
 }
 
 .toastui-editor-toolbar .toastui-editor-toolbar-group {
-    margin: 0 2px;
+    margin: 0 4px;
 }
 
 .toastui-editor-toolbar .separator {

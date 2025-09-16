@@ -309,7 +309,7 @@ export class NotesEditor {
 
   updateNotesView(viewContainer, content, mode = 'preview') {
     if (!content || content.trim() === '') {
-      const placeholder = mode === 'preview' ? 'No notes' : 'Click ✏️ to add notes';
+      const placeholder = 'Click ✏️ to add notes';
       viewContainer.innerHTML = `<div class="notes-placeholder">${placeholder}</div>`;
       return;
     }
@@ -524,6 +524,8 @@ export class NotesEditor {
       .replace(/\*(.*)\*/gim, '<em>$1</em>')
       // Code
       .replace(/`(.*?)`/gim, '<code>$1</code>')
+      // Images (must come before links)
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/gim, '<img src="$2" alt="$1" style="max-width: 100%; height: auto;">')
       // Links
       .replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank">$1</a>')
       // Line breaks
