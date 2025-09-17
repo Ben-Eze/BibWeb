@@ -87,6 +87,38 @@
   
   <!-- Node toolbars will be rendered inside .nodes -->
   <!-- Edge toolbars will be rendered inside .edges -->
-  <script type="module" src="app.js"></script>
+  
+  <!-- CORS/Module loading fallback -->
+  <div id="cors-error" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 10000; color: white; padding: 40px; box-sizing: border-box;">
+    <div style="max-width: 600px; margin: 0 auto; background: #1a1a1a; padding: 30px; border-radius: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <h2 style="color: #ff6b6b; margin-top: 0;">⚠️ Module Loading Error</h2>
+      <p>This application uses ES6 modules which cannot be loaded directly from the file system due to browser security restrictions.</p>
+      <h3 style="color: #4ecdc4;">Solutions:</h3>
+      <ol>
+        <li><strong>Use VS Code Live Server:</strong> Install the "Live Server" extension in VS Code, then right-click index.html and select "Open with Live Server"</li>
+        <li><strong>Use Python HTTP Server:</strong> Open terminal in this folder and run:<br>
+            <code style="background: #333; padding: 4px 8px; border-radius: 4px; display: inline-block; margin: 4px 0;">python -m http.server 8000</code><br>
+            Then visit <code style="background: #333; padding: 4px 8px; border-radius: 4px;">http://localhost:8000</code></li>
+        <li><strong>Use Node.js HTTP Server:</strong> Install globally with <code style="background: #333; padding: 4px 8px; border-radius: 4px;">npm install -g http-server</code><br>
+            Then run <code style="background: #333; padding: 4px 8px; border-radius: 4px;">http-server</code> in this folder</li>
+      </ol>
+      <p style="margin-bottom: 0;"><small>This message will not appear when running through a web server.</small></p>
+    </div>
+  </div>
+
+  <script type="module" src="app.js" onerror="showCorsError()"></script>
+  <script>
+    // Show CORS error if modules fail to load
+    function showCorsError() {
+      document.getElementById('cors-error').style.display = 'block';
+    }
+    
+    // Detect if ES6 modules are not supported or failed to load
+    setTimeout(() => {
+      if (typeof window.setupNetwork === 'undefined' && !document.querySelector('#cors-error[style*="block"]')) {
+        showCorsError();
+      }
+    }, 1000);
+  </script>
 </body>
 </html>

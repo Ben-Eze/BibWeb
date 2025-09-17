@@ -5,6 +5,9 @@ import { loadFromStorage, saveToStorage } from './storage.js';
 import { setupPaperForm } from './paperForm.js';
 import './errorNotifications.js'; // Enable error notifications
 
+// Global flag to indicate modules loaded successfully
+window.setupNetwork = setupNetwork;
+
 document.addEventListener('DOMContentLoaded', () => {
   const { network, nodes, edges, NOTES_MODE } = setupNetwork();
   loadFromStorage(nodes, edges, network);
