@@ -3,10 +3,11 @@ import { setupNetwork } from './network.js';
 import { setupDocumentToolbar } from './toolbar.js';
 import { loadFromStorage, saveToStorage } from './storage.js';
 import { setupPaperForm } from './paperForm.js';
+import './errorNotifications.js'; // Enable error notifications
 
 document.addEventListener('DOMContentLoaded', () => {
   const { network, nodes, edges, NOTES_MODE } = setupNetwork();
-  loadFromStorage(nodes, edges);
+  loadFromStorage(nodes, edges, network);
   // Ensure labels are empty so overlays display the title/author instead of canvas labels
   if (nodes && typeof nodes.get === 'function') {
     const all = nodes.get();

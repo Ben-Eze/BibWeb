@@ -139,6 +139,21 @@ export function setupDocumentToolbar(network, nodes, edges) {
 
   document.getElementById('exportBtn').addEventListener('click', () => {
     const data = { nodes: nodes.get(), edges: edges.get() };
+    
+    // Get current node positions and add them to the export data
+    try {
+      const positions = network.getPositions();
+      data.nodes.forEach(node => {
+        const pos = positions[node.id];
+        if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+          node.x = pos.x;
+          node.y = pos.y;
+        }
+      });
+    } catch (e) {
+      console.error('Failed to export node positions', e);
+    }
+    
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -161,10 +176,66 @@ export function setupDocumentToolbar(network, nodes, edges) {
     reader.onload = (e) => {
       try {
         const parsed = JSON.parse(e.target.result);
-        if (parsed.nodes) nodes.clear(), nodes.add(parsed.nodes);
-        if (parsed.edges) edges.clear(), edges.add(parsed.edges);
+        if (parsed.nodes) {
+          nodes.clear();
+          nodes.add(parsed.nodes);
+          
+          // If imported data has positions, apply them after network is ready
+          if (parsed.nodes.some(node => typeof node.x === 'number' && typeof node.y === 'number')) {
+            let positionsRestored = false; // Flag to ensure it only runs once
+            
+            const restorePositions = () => {
+              if (positionsRestored) return; // Prevent multiple executions
+              positionsRestored = true;
+              
+              try {
+                const positionUpdates = [];
+                parsed.nodes.forEach(node => {
+                  if (typeof node.x === 'number' && typeof node.y === 'number' && !isNaN(node.x) && !isNaN(node.y)) {
+                    // Preserve the original physics/locked state of the node
+                    const originalPhysics = node.physics !== undefined ? node.physics : true;
+                    positionUpdates.push({
+                      id: node.id,
+                      x: node.x,
+                      y: node.y,
+                      physics: originalPhysics // Preserve original physics state
+                    });
+                  }
+                });
+                console.log('Attempting to restore imported positions for', positionUpdates.length, 'nodes');
+                if (positionUpdates.length > 0) {
+                  nodes.update(positionUpdates);
+                  console.log('Successfully restored imported node positions');
+                } else {
+                  console.log('No valid imported positions found to restore');
+                }
+              } catch (e) {
+                console.error('Failed to restore imported node positions', e);
+              }
+            };
+
+            // Single timing approach
+            if (typeof network.on === 'function') {
+              const stabilizedHandler = () => {
+                console.log('Network stabilized after import, restoring positions');
+                network.off('stabilized', stabilizedHandler);
+                setTimeout(restorePositions, 100);
+              };
+              network.on('stabilized', stabilizedHandler);
+            } else {
+              // Fallback timeout
+              setTimeout(restorePositions, 500);
+            }
+          }
+        }
+        if (parsed.edges) {
+          edges.clear();
+          edges.add(parsed.edges);
+        }
         window._saveToStorage();
-      } catch (err) { alert('Invalid JSON'); }
+      } catch (err) { 
+        alert('Invalid JSON'); 
+      }
     };
     reader.readAsText(f);
   });

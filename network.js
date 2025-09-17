@@ -114,6 +114,14 @@ export function setupNetwork() {
 	window._applySpacing = (selected = false) => applySpacing(selected);
 	let lastSelectedNodes = [];
 	
+	// Auto-save positions when nodes are moved
+	network.on('dragEnd', function (params) {
+		if (params.nodes && params.nodes.length > 0) {
+			console.log('Node(s) moved, auto-saving positions...');
+			saveToStorage();
+		}
+	});
+	
 	network.on('selectNode', function (params) {
 		lastSelectedNodes = params.nodes.slice();
 		
@@ -253,7 +261,26 @@ export function setupNetwork() {
 
 	function saveToStorage() {
 		const data = { nodes: nodes.get(), edges: edges.get() };
+		
+		// Get current node positions and add them to the data
+		try {
+			const positions = network.getPositions();
+			console.log('Current network positions:', positions);
+			data.nodes.forEach(node => {
+				const pos = positions[node.id];
+				if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+					console.log(`Saving position for node ${node.id}: (${pos.x}, ${pos.y})`);
+					node.x = pos.x;
+					node.y = pos.y;
+				}
+			});
+			console.log('Data being saved to localStorage:', data);
+		} catch (e) {
+			console.error('Failed to save node positions', e);
+		}
+		
 		localStorage.setItem('paper-web-data-v1', JSON.stringify(data));
+		console.log('Data saved to localStorage');
 	}
 
 	// Expose for toolbar.js
