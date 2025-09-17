@@ -860,7 +860,7 @@ export class NotesEditor {
       }
     } else if (node.type === 'paper' && this.isPdfUrl(node.link)) {
       return `<iframe 
-        src="${this.escapeHtml(node.link)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
+        src="${this.escapeHtml(node.link)}#toolbar=1&navpanes=0&scrollbar=1" 
         width="100%" 
         height="100%" 
         frameborder="0">
