@@ -155,10 +155,6 @@ export class NotesEditor {
         editor.changeMode('wysiwyg', true);
         this.editors.set(nodeId, editor);
 
-        // Debug: Log available methods
-        console.log('Editor methods:', Object.getOwnPropertyNames(editor));
-        console.log('Editor prototype methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(editor)));
-
         // Set up math button functionality
         this.setupMathButton(editor);
 
@@ -175,21 +171,15 @@ export class NotesEditor {
   }
 
   setupMathButton(editor) {
-    console.log('setupMathButton called', editor);
-    
     // Since we're adding the math button outside the Toast UI toolbar,
     // we don't need to modify the toolbar here anymore
-    console.log('Math button is already added to the custom toolbar above the editor');
   }
 
   testKaTeX() {
-    console.log('Testing KaTeX availability...');
     if (typeof katex !== 'undefined') {
-      console.log('KaTeX is available, version:', katex.version || 'unknown');
       try {
         const testFormula = 'E = mc^2';
-        const rendered = katex.renderToString(testFormula, { displayMode: false });
-        console.log('KaTeX test successful, rendered:', rendered);
+        katex.renderToString(testFormula, { displayMode: false });
       } catch (e) {
         console.error('KaTeX test failed:', e);
       }
@@ -199,23 +189,18 @@ export class NotesEditor {
   }
 
   insertMathFormula(nodeId) {
-    console.log('insertMathFormula called for nodeId:', nodeId);
     const editor = this.editors.get(nodeId);
-    console.log('Editor found:', !!editor);
     
     if (editor) {
       // Prompt user for formula
       const formula = prompt('Enter LaTeX math formula:', 'E = mc^2');
-      console.log('User entered formula:', formula);
       
       if (formula) {
         const mathText = `$${formula}$`;
-        console.log('Inserting math text:', mathText);
         
         try {
           // Use the simpler insertText method that should work
           editor.insertText(mathText);
-          console.log('Inserted text successfully');
           editor.focus();
         } catch (err) {
           console.error('Error inserting math:', err);
@@ -226,7 +211,6 @@ export class NotesEditor {
             const currentContent = editor.getMarkdown();
             const newContent = currentContent + mathText;
             editor.setMarkdown(newContent);
-            console.log('Fallback: Added to end of content');
           } catch (fallbackErr) {
             console.error('Fallback insertion failed:', fallbackErr);
             
@@ -242,7 +226,6 @@ export class NotesEditor {
                   } else {
                     textInput.innerHTML += mathText;
                   }
-                  console.log('DOM manipulation successful');
                 } else {
                   console.error('Could not find text input element');
                 }
@@ -764,9 +747,9 @@ export class NotesEditor {
           listType = '';
         }
         
-        // Add to current paragraph
+        // Add to current paragraph with line break preservation
         if (currentParagraph) {
-          currentParagraph += ' ' + line;
+          currentParagraph += '<br>' + line;
         } else {
           currentParagraph = line;
         }
