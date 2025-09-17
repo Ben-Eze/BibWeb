@@ -137,6 +137,186 @@ export function setupDocumentToolbar(network, nodes, edges) {
     window._saveToStorage();
   });
 
+  document.getElementById('combineNotesBtn').addEventListener('click', () => {
+    const allNodes = nodes.get();
+    const allEdges = edges.get();
+    
+    // Filter nodes that have notes
+    const nodesWithNotes = allNodes.filter(node => node.notes && node.notes.trim().length > 0);
+    
+    if (nodesWithNotes.length === 0) {
+      alert('No papers have notes to combine.');
+      return;
+    }
+    
+    // Create a hierarchical ordering based on the network structure
+    const getHierarchicalOrder = () => {
+      // Find root nodes (nodes with no incoming edges)
+      const nodeIds = new Set(allNodes.map(n => n.id));
+      const hasIncomingEdge = new Set();
+      
+      allEdges.forEach(edge => {
+        hasIncomingEdge.add(edge.to);
+      });
+      
+      const rootNodes = allNodes.filter(node => !hasIncomingEdge.has(node.id));
+      const orderedNodes = [];
+      const visited = new Set();
+      
+      // Depth-first traversal from root nodes
+      const dfs = (nodeId, depth = 0) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+        
+        const node = allNodes.find(n => n.id === nodeId);
+        if (node && node.notes && node.notes.trim().length > 0) {
+          orderedNodes.push({ ...node, depth });
+        }
+        
+        // Find children of this node
+        const children = allEdges
+          .filter(edge => edge.from === nodeId)
+          .map(edge => edge.to)
+          .sort(); // Sort for consistent ordering
+        
+        children.forEach(childId => dfs(childId, depth + 1));
+      };
+      
+      // Start DFS from all root nodes
+      rootNodes.forEach(root => dfs(root.id));
+      
+      // Add any remaining nodes with notes that weren't reached
+      nodesWithNotes.forEach(node => {
+        if (!visited.has(node.id)) {
+          orderedNodes.push({ ...node, depth: 0 });
+        }
+      });
+      
+      return orderedNodes;
+    };
+    
+    const orderedNodes = getHierarchicalOrder();
+    
+    // Generate the combined markdown
+    let combinedMarkdown = '# Combined Paper Notes\n\n';
+    
+    orderedNodes.forEach((node, index) => {
+      combinedMarkdown += '_____________________\n';
+      combinedMarkdown += `#### ${node.title}\n`;
+      if (node.authors) {
+        combinedMarkdown += `**Authors:** ${node.authors}\n`;
+      }
+      if (node.doi) {
+        combinedMarkdown += `**DOI:** ${node.doi}\n`;
+      }
+      if (node.link) {
+        combinedMarkdown += `**Link:** ${node.link}\n`;
+      }
+      combinedMarkdown += '\n';
+      combinedMarkdown += node.notes;
+      combinedMarkdown += '\n\n';
+    });
+    
+    // Create a new window to display the combined notes
+    const newWindow = window.open('', '_blank', 'width=800,height=600');
+    if (newWindow) {
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Combined Paper Notes</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+              line-height: 1.6;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 20px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #eee;
+            }
+            .copy-btn {
+              background: #007bff;
+              color: white;
+              border: none;
+              padding: 8px 16px;
+              border-radius: 4px;
+              cursor: pointer;
+              font-size: 14px;
+            }
+            .copy-btn:hover {
+              background: #0056b3;
+            }
+            .content {
+              white-space: pre-wrap;
+              font-family: 'Courier New', monospace;
+              background: #f8f9fa;
+              padding: 20px;
+              border-radius: 4px;
+              border: 1px solid #e9ecef;
+            }
+            .success-message {
+              color: green;
+              font-size: 12px;
+              margin-left: 10px;
+              opacity: 0;
+              transition: opacity 0.3s;
+            }
+            .success-message.show {
+              opacity: 1;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Combined Paper Notes</h1>
+            <div>
+              <button class="copy-btn" onclick="copyToClipboard()">Copy to Clipboard</button>
+              <span class="success-message" id="successMessage">Copied!</span>
+            </div>
+          </div>
+          <div class="content" id="content">${combinedMarkdown.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+          <script>
+            function copyToClipboard() {
+              const content = document.getElementById('content').textContent;
+              navigator.clipboard.writeText(content).then(() => {
+                const msg = document.getElementById('successMessage');
+                msg.classList.add('show');
+                setTimeout(() => msg.classList.remove('show'), 2000);
+              }).catch(err => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = content;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                  document.execCommand('copy');
+                  const msg = document.getElementById('successMessage');
+                  msg.classList.add('show');
+                  setTimeout(() => msg.classList.remove('show'), 2000);
+                } catch (err) {
+                  alert('Copy failed. Please select all text and copy manually.');
+                }
+                document.body.removeChild(textArea);
+              });
+            }
+          </script>
+        </body>
+        </html>
+      `);
+      newWindow.document.close();
+    } else {
+      // Fallback if popup is blocked
+      alert('Popup blocked. Please allow popups for this site to view combined notes.');
+    }
+  });
+
   document.getElementById('exportBtn').addEventListener('click', () => {
     const data = { nodes: nodes.get(), edges: edges.get() };
     
