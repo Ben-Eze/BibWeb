@@ -114,11 +114,18 @@ export function setupNetwork() {
 	window._applySpacing = (selected = false) => applySpacing(selected);
 	let lastSelectedNodes = [];
 	
-	// Auto-save positions when nodes are moved
+	// Debounced auto-save to prevent infinite loops during position restoration
+	let saveTimeout = null;
 	network.on('dragEnd', function (params) {
-		if (params.nodes && params.nodes.length > 0) {
-			console.log('Node(s) moved, auto-saving positions...');
-			saveToStorage();
+		if (params.nodes && params.nodes.length > 0 && !window._restoringPositions) {
+			// Clear any existing timeout
+			if (saveTimeout) clearTimeout(saveTimeout);
+			// Set a new timeout to save after user stops dragging
+			saveTimeout = setTimeout(() => {
+				console.log('Node(s) moved, auto-saving positions...');
+				saveToStorage();
+				saveTimeout = null;
+			}, 500); // Wait 500ms after last drag to save
 		}
 	});
 	
@@ -311,7 +318,11 @@ export function setupNetwork() {
 	if (typeof network.unselectAll === 'function') network.unselectAll();
 
 		// One-time initial reset after first render to guarantee defaults
+		let initialResetDone = false;
 		const initialReset = () => {
+			if (initialResetDone) return; // Prevent multiple executions
+			initialResetDone = true;
+			
 			try {
 				// Reset all nodes to default constraints and font
 				const nodeUpdates = nodes.get().map(n => ({
@@ -322,14 +333,14 @@ export function setupNetwork() {
 				}));
 				if (nodeUpdates.length) nodes.update(nodeUpdates);
 
-				// Apply default spacing and unselect
+				// Apply default spacing (without unselect to avoid infinite loop)
 				try { applySpacing(false); } catch {}
-				if (typeof network.unselectAll === 'function') network.unselectAll();
 
 				// Ensure overlay toolbars are hidden
 				const cont = document.getElementById('nodeOverlayContainer');
 				if (cont) cont.querySelectorAll('.node-overlay.is-selected').forEach(el => el.classList.remove('is-selected'));
 			} finally {
+				// Remove the event listener to prevent further calls
 				if (typeof network.off === 'function') network.off('afterDrawing', initialReset);
 			}
 		};

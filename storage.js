@@ -22,6 +22,9 @@ export function loadFromStorage(nodes, edges, network) {
           if (positionsRestored) return; // Prevent multiple executions
           positionsRestored = true;
           
+          // Set global flag to prevent auto-save during restoration
+          window._restoringPositions = true;
+          
           console.log('Restore positions function called');
           try {
             const positionUpdates = [];
@@ -48,6 +51,12 @@ export function loadFromStorage(nodes, edges, network) {
             }
           } catch (e) {
             console.error('Failed to restore node positions', e);
+          } finally {
+            // Clear the flag after a delay to allow stabilization
+            setTimeout(() => {
+              window._restoringPositions = false;
+              console.log('Position restoration complete');
+            }, 1000);
           }
         };
 
