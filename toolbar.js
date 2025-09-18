@@ -382,12 +382,8 @@ export function setupDocumentToolbar(network, nodes, edges) {
                     });
                   }
                 });
-                console.log('Attempting to restore imported positions for', positionUpdates.length, 'nodes');
                 if (positionUpdates.length > 0) {
                   nodes.update(positionUpdates);
-                  console.log('Successfully restored imported node positions');
-                } else {
-                  console.log('No valid imported positions found to restore');
                 }
               } catch (e) {
                 console.error('Failed to restore imported node positions', e);
@@ -397,7 +393,6 @@ export function setupDocumentToolbar(network, nodes, edges) {
             // Single timing approach
             if (typeof network.on === 'function') {
               const stabilizedHandler = () => {
-                console.log('Network stabilized after import, restoring positions');
                 network.off('stabilized', stabilizedHandler);
                 setTimeout(restorePositions, 100);
               };

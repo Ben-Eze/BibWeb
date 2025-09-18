@@ -11,8 +11,6 @@ export function loadFromStorage(nodes, edges, network) {
     edges.clear();
     if (obj.nodes) {
       nodes.add(obj.nodes);
-      console.log('Loaded nodes:', obj.nodes.length);
-      console.log('Nodes with positions:', obj.nodes.filter(n => typeof n.x === 'number' && typeof n.y === 'number').length);
       
       // If the stored data has positions, apply them after network stabilization
       if (network && obj.nodes.some(node => typeof node.x === 'number' && typeof node.y === 'number')) {
@@ -25,7 +23,6 @@ export function loadFromStorage(nodes, edges, network) {
           // Set global flag to prevent auto-save during restoration
           window._restoringPositions = true;
           
-          console.log('Restore positions function called');
           try {
             const positionUpdates = [];
             obj.nodes.forEach(node => {
@@ -38,16 +35,10 @@ export function loadFromStorage(nodes, edges, network) {
                   y: node.y,
                   physics: originalPhysics // Preserve original physics state
                 });
-                console.log(`Will restore node ${node.id} to position (${node.x}, ${node.y}), physics: ${originalPhysics}`);
               }
             });
-            console.log('Position updates array:', positionUpdates);
             if (positionUpdates.length > 0) {
-              console.log('Updating nodes with positions...');
               nodes.update(positionUpdates);
-              console.log('Successfully restored node positions');
-            } else {
-              console.log('No valid positions found to restore');
             }
           } catch (e) {
             console.error('Failed to restore node positions', e);
@@ -55,17 +46,13 @@ export function loadFromStorage(nodes, edges, network) {
             // Clear the flag after a delay to allow stabilization
             setTimeout(() => {
               window._restoringPositions = false;
-              console.log('Position restoration complete');
             }, 1000);
           }
         };
 
         // Single timing approach - use stabilized event or fallback timeout
-        console.log('Setting up position restoration...');
-        
         if (typeof network.on === 'function') {
           const stabilizedHandler = () => {
-            console.log('Network stabilized, restoring positions');
             network.off('stabilized', stabilizedHandler);
             setTimeout(restorePositions, 100);
           };

@@ -122,7 +122,6 @@ export function setupNetwork() {
 			if (saveTimeout) clearTimeout(saveTimeout);
 			// Set a new timeout to save after user stops dragging
 			saveTimeout = setTimeout(() => {
-				console.log('Node(s) moved, auto-saving positions...');
 				saveToStorage();
 				saveTimeout = null;
 			}, 500); // Wait 500ms after last drag to save
@@ -272,22 +271,18 @@ export function setupNetwork() {
 		// Get current node positions and add them to the data
 		try {
 			const positions = network.getPositions();
-			console.log('Current network positions:', positions);
 			data.nodes.forEach(node => {
 				const pos = positions[node.id];
 				if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
-					console.log(`Saving position for node ${node.id}: (${pos.x}, ${pos.y})`);
 					node.x = pos.x;
 					node.y = pos.y;
 				}
 			});
-			console.log('Data being saved to localStorage:', data);
 		} catch (e) {
 			console.error('Failed to save node positions', e);
 		}
 		
 		localStorage.setItem('paper-web-data-v1', JSON.stringify(data));
-		console.log('Data saved to localStorage');
 	}
 
 	// Expose for toolbar.js

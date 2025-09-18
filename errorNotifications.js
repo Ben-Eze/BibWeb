@@ -28,7 +28,6 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 function showErrorNotification(message) {
-  console.log('Showing error notification:', message); // Debug log
   notificationCount++;
   
   // Create notification element
@@ -120,8 +119,5 @@ if (document.readyState === 'loading') {
 } else {
   addErrorNotificationStyles();
 }
-
-// Log that the system is loaded
-console.log('Error notification system loaded. Try: testErrorNotification() or console.error("test")');
 
 export { showErrorNotification, testErrorNotification };
