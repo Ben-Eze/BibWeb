@@ -2,6 +2,108 @@
 // Exports: setupDocumentToolbar(network, nodes, edges)
 
 export function setupDocumentToolbar(network, nodes, edges) {
+  // In-memory map of asset filename -> Blob (for PDFs and other files users attach)
+  // This is intentionally simple: files are stored for the session and included on export.
+  const sessionAssets = new Map();
+
+  // Helper to register an asset (file) into sessionAssets. Returns the filename used.
+  function registerAsset(file) {
+    // Use the original file name; if collision, append a numeric suffix
+    let base = file.name;
+    let name = base;
+    let i = 1;
+    while (sessionAssets.has(name)) {
+      const dot = base.lastIndexOf('.');
+      const prefix = dot !== -1 ? base.slice(0, dot) : base;
+      const ext = dot !== -1 ? base.slice(dot) : '';
+      name = `${prefix}-${i}${ext}`;
+      i += 1;
+    }
+    sessionAssets.set(name, file);
+    return name;
+  }
+
+  // Expose a minimal session asset API for other modules (paperForm, viewer, export)
+  window._getSessionAssets = function() {
+    return Array.from(sessionAssets.keys());
+  };
+  window._getSessionAssetBlob = function(name) {
+    const blob = sessionAssets.get(name);
+    if (!blob) {
+      console.warn('[Assets] Blob not found for:', name, 'Available:', Array.from(sessionAssets.keys()));
+    }
+    return blob || null;
+  };
+  window._registerSessionAsset = function(file) {
+    const name = registerAsset(file);
+    console.log('[Assets] Registered', name, 'Total assets:', sessionAssets.size);
+    return name;
+  };
+  
+  // Convert session assets to/from localStorage-friendly format (base64 data URLs)
+  window._getSessionAssetsForStorage = async function() {
+    const assetsData = {};
+    const promises = [];
+    
+    console.log('[Assets] Saving', sessionAssets.size, 'assets to localStorage');
+    
+    sessionAssets.forEach((file, filename) => {
+      // Only save files under 5MB to avoid localStorage quota issues
+      if (file.size <= 5 * 1024 * 1024) {
+        const promise = new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            assetsData[filename] = {
+              dataUrl: e.target.result,
+              type: file.type,
+              size: file.size
+            };
+            console.log('[Assets] Serialized', filename, 'Size:', file.size, 'bytes');
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        });
+        promises.push(promise);
+      } else {
+        console.warn('[Assets] Skipping large file:', filename, 'Size:', file.size, 'bytes (>5MB)');
+      }
+    });
+    
+    await Promise.all(promises);
+    console.log('[Assets] Finished serializing', Object.keys(assetsData).length, 'assets');
+    return assetsData;
+  };
+  
+  window._restoreSessionAssets = function(assetsData) {
+    const count = Object.keys(assetsData).length;
+    console.log('[Assets] Restoring', count, 'assets from localStorage');
+    
+    const promises = [];
+    Object.entries(assetsData).forEach(([filename, assetInfo]) => {
+      // Convert data URL back to Blob
+      const promise = fetch(assetInfo.dataUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          // Create a File object from the Blob
+          const file = new File([blob], filename, { type: assetInfo.type });
+          sessionAssets.set(filename, file);
+          console.log('[Assets] Restored', filename);
+        })
+        .catch(err => {
+          console.error(`[Assets] Failed to restore ${filename}:`, err);
+        });
+      promises.push(promise);
+    });
+    
+    // After all assets are restored, refresh any overlays that need them
+    Promise.all(promises).then(() => {
+      console.log('[Assets] All assets restored, refreshing overlays');
+      if (typeof window._refreshNodeOverlays === 'function') {
+        window._refreshNodeOverlays();
+      }
+    });
+  };
+
   // Ensure any currently selected nodes are reset to default visuals before deselecting
   function restoreSelectedThenUnselect() {
     if (typeof network.getSelectedNodes === 'function') {
@@ -334,19 +436,54 @@ export function setupDocumentToolbar(network, nodes, edges) {
       console.error('Failed to export node positions', e);
     }
     
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'paper-web-export.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    // If we have session assets (local PDFs), export as a project ZIP: web.json + assets/
+    if (sessionAssets.size > 0 && typeof JSZip !== 'undefined') {
+      const zip = new JSZip();
+      zip.file('web.json', JSON.stringify(data, null, 2));
+      const assetsFolder = zip.folder('assets');
+      sessionAssets.forEach((file, filename) => {
+        assetsFolder.file(filename, file);
+      });
+      zip.generateAsync({ type: 'blob' }).then((zblob) => {
+        const url = URL.createObjectURL(zblob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'paper-web-project.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      });
+    } else {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'paper-web-export.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
   });
 
   document.getElementById('importBtn').addEventListener('click', () => {
-    document.getElementById('importFile').click();
+    // Ask user whether to import ZIP or directory
+    const choice = confirm('Import as ZIP file?\n\nOK = Import ZIP file\nCancel = Import directory (folder picker)');
+    
+    if (choice) {
+      // Import ZIP file
+      document.getElementById('importProjectZip').click();
+    } else {
+      // Import directory (if browser supports it)
+      const importProjectEl = document.getElementById('importProject');
+      if (importProjectEl && importProjectEl.style) {
+        importProjectEl.click();
+      } else {
+        // Fallback to single JSON file
+        document.getElementById('importFile').click();
+      }
+    }
   });
 
   document.getElementById('importFile').addEventListener('change', (ev) => {
@@ -413,5 +550,268 @@ export function setupDocumentToolbar(network, nodes, edges) {
       }
     };
     reader.readAsText(f);
+  });
+
+  // Handle importing a project directory (web.json + assets/*) or ZIP file
+  const importProjectEl = document.getElementById('importProject');
+  if (importProjectEl) {
+    importProjectEl.addEventListener('change', async (ev) => {
+      const files = Array.from(ev.target.files || []);
+      if (!files.length) return;
+
+      // Check if it's a ZIP file
+      const zipFile = files.find(f => f.name.toLowerCase().endsWith('.zip'));
+      if (zipFile) {
+        try {
+          const zip = await JSZip.loadAsync(zipFile);
+          
+          // Find web.json in the ZIP
+          let webJsonContent = null;
+          const webJsonFile = zip.file('web.json');
+          if (webJsonFile) {
+            webJsonContent = await webJsonFile.async('string');
+          }
+
+          if (!webJsonContent) {
+            alert('No web.json found in ZIP file');
+            return;
+          }
+
+          // Parse the web.json
+          const parsed = JSON.parse(webJsonContent);
+
+          // Extract and register assets from the ZIP
+          const assetFolder = zip.folder('assets');
+          if (assetFolder) {
+            const assetPromises = [];
+            assetFolder.forEach((relativePath, file) => {
+              if (!file.dir) {
+                assetPromises.push(
+                  file.async('blob').then(blob => {
+                    const fileName = relativePath;
+                    const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
+                    registerAsset(fileObj);
+                  })
+                );
+              }
+            });
+            await Promise.all(assetPromises);
+          }
+
+          // Load the data
+          if (parsed.nodes) {
+            nodes.clear();
+            nodes.add(parsed.nodes);
+          }
+          if (parsed.edges) {
+            edges.clear();
+            edges.add(parsed.edges);
+          }
+          window._saveToStorage();
+
+        } catch (err) {
+          console.error('Error importing ZIP:', err);
+          alert('Failed to import ZIP file: ' + err.message);
+        }
+        return;
+      }
+
+      // Otherwise, handle as directory upload (multiple files)
+      // Find web.json (or web.json-like) file
+      const webFile = files.find(f => f.name.toLowerCase() === 'web.json' || f.name.toLowerCase() === 'web.json');
+      let parsed = null;
+      const assetFiles = files.filter(f => f.name && !/web\.json/i.test(f.name));
+
+      // Register asset files
+      assetFiles.forEach(f => registerAsset(f));
+
+      if (webFile) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            parsed = JSON.parse(e.target.result);
+            if (parsed.nodes) {
+              nodes.clear();
+              nodes.add(parsed.nodes);
+            }
+            if (parsed.edges) {
+              edges.clear();
+              edges.add(parsed.edges);
+            }
+            window._saveToStorage();
+          } catch (err) {
+            alert('Invalid project web.json');
+          }
+        };
+        reader.readAsText(webFile);
+      } else {
+        alert('No web.json found in selected project folder');
+      }
+    });
+  }
+
+  // Handle importing a project ZIP file
+  const importProjectZipEl = document.getElementById('importProjectZip');
+  if (importProjectZipEl) {
+    importProjectZipEl.addEventListener('change', async (ev) => {
+      const zipFile = ev.target.files[0];
+      if (!zipFile) return;
+
+      try {
+        const zip = await JSZip.loadAsync(zipFile);
+        
+        // Find web.json in the ZIP
+        let webJsonContent = null;
+        const webJsonFile = zip.file('web.json');
+        if (webJsonFile) {
+          webJsonContent = await webJsonFile.async('string');
+        }
+
+        if (!webJsonContent) {
+          alert('No web.json found in ZIP file');
+          return;
+        }
+
+        // Parse the web.json
+        const parsed = JSON.parse(webJsonContent);
+
+        // Extract and register assets from the ZIP
+        const assetFolder = zip.folder('assets');
+        if (assetFolder) {
+          const assetPromises = [];
+          assetFolder.forEach((relativePath, file) => {
+            if (!file.dir) {
+              assetPromises.push(
+                file.async('blob').then(blob => {
+                  const fileName = relativePath;
+                  const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
+                  registerAsset(fileObj);
+                })
+              );
+            }
+          });
+          await Promise.all(assetPromises);
+        }
+
+        // Load the data
+        if (parsed.nodes) {
+          nodes.clear();
+          nodes.add(parsed.nodes);
+        }
+        if (parsed.edges) {
+          edges.clear();
+          edges.add(parsed.edges);
+        }
+        window._saveToStorage();
+
+      } catch (err) {
+        console.error('Error importing ZIP:', err);
+        alert('Failed to import ZIP file: ' + err.message);
+      }
+    });
+  }
+
+  // Drag-and-drop support for PDFs, JSON, and ZIP imports (minimal, non-invasive)
+  async function handleDropFiles(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    // Check for ZIP file first
+    const zipFile = files.find(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zipFile) {
+      try {
+        const zip = await JSZip.loadAsync(zipFile);
+        
+        // Find web.json in the ZIP
+        let webJsonContent = null;
+        const webJsonFile = zip.file('web.json');
+        if (webJsonFile) {
+          webJsonContent = await webJsonFile.async('string');
+        }
+
+        if (!webJsonContent) {
+          alert('No web.json found in ZIP file');
+          return;
+        }
+
+        // Parse the web.json
+        const parsed = JSON.parse(webJsonContent);
+
+        // Extract and register assets from the ZIP
+        const assetFolder = zip.folder('assets');
+        if (assetFolder) {
+          const assetPromises = [];
+          assetFolder.forEach((relativePath, file) => {
+            if (!file.dir) {
+              assetPromises.push(
+                file.async('blob').then(blob => {
+                  const fileName = relativePath;
+                  const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
+                  registerAsset(fileObj);
+                })
+              );
+            }
+          });
+          await Promise.all(assetPromises);
+        }
+
+        // Load the data
+        if (parsed.nodes) {
+          nodes.clear();
+          nodes.add(parsed.nodes);
+        }
+        if (parsed.edges) {
+          edges.clear();
+          edges.add(parsed.edges);
+        }
+        window._saveToStorage();
+
+      } catch (err) {
+        console.error('Error importing ZIP:', err);
+        alert('Failed to import ZIP file: ' + err.message);
+      }
+      return;
+    }
+
+    // If there's a JSON, prefer it (single-file import)
+    const jsonFile = files.find(f => f.name.endsWith('.json'));
+    if (jsonFile) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed.nodes) {
+            nodes.clear();
+            nodes.add(parsed.nodes);
+          }
+          if (parsed.edges) {
+            edges.clear();
+            edges.add(parsed.edges);
+          }
+          window._saveToStorage();
+        } catch (err) { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(jsonFile);
+      return;
+    }
+
+    // Otherwise, treat dropped PDF files as assets to register and open file dialog in paper form
+    const pdfs = files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+    if (pdfs.length > 0) {
+      // Register assets and prompt to attach to a new paper
+      pdfs.forEach(f => registerAsset(f));
+      alert(`${pdfs.length} PDF(s) registered for this session. When adding a paper, choose from attached files in the "PDF URL" field.`);
+    }
+  }
+
+  // Add drag/drop listeners on the document body
+  ;['dragover','drop'].forEach(evt => {
+    document.body.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+  document.body.addEventListener('drop', (e) => {
+    handleDropFiles(e.dataTransfer.files);
   });
 }

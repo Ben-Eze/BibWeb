@@ -283,6 +283,27 @@ export function setupNetwork() {
 		}
 		
 		localStorage.setItem('paper-web-data-v1', JSON.stringify(data));
+		
+		// Save session assets to localStorage (async, fire-and-forget)
+		if (typeof window._getSessionAssetsForStorage === 'function') {
+			console.log('[Storage] Starting async asset save...');
+			window._getSessionAssetsForStorage().then(assetsData => {
+				try {
+					const assetCount = Object.keys(assetsData).length;
+					console.log('[Storage] Saving', assetCount, 'assets to localStorage');
+					localStorage.setItem('paper-web-assets-v1', JSON.stringify(assetsData));
+					console.log('[Storage] Assets saved successfully');
+				} catch (e) {
+					console.error('Failed to save session assets', e);
+					// If localStorage is full, warn the user
+					if (e.name === 'QuotaExceededError') {
+						console.warn('localStorage quota exceeded. Assets not saved. Please export as ZIP to preserve files.');
+					}
+				}
+			}).catch(e => {
+				console.error('Failed to serialize session assets', e);
+			});
+		}
 	}
 
 	// Expose for toolbar.js

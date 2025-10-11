@@ -830,8 +830,21 @@ export class NotesEditor {
       return '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No document link</div>';
     }
 
-    if (node.type === 'video' && this.isYouTubeUrl(node.link)) {
-      const videoId = this.extractYouTubeId(node.link);
+    // Check if this is a session asset link (assets/<filename>)
+    let actualLink = node.link;
+    if (node.link.startsWith('assets/')) {
+      const filename = node.link.substring(7); // Remove 'assets/' prefix
+      if (typeof window._getSessionAssetBlob === 'function') {
+        const blob = window._getSessionAssetBlob(filename);
+        if (blob) {
+          // Create a Blob URL for this session asset
+          actualLink = URL.createObjectURL(blob);
+        }
+      }
+    }
+
+    if (node.type === 'video' && this.isYouTubeUrl(actualLink)) {
+      const videoId = this.extractYouTubeId(actualLink);
       if (videoId) {
         return `<iframe 
           src="https://www.youtube.com/embed/${videoId}" 
@@ -841,9 +854,9 @@ export class NotesEditor {
           allowfullscreen>
         </iframe>`;
       }
-    } else if (node.type === 'paper' && this.isPdfUrl(node.link)) {
+    } else if ((node.type === 'paper-url' || node.type === 'paper-file' || node.type === 'paper') && this.isPdfUrl(actualLink)) {
       return `<iframe 
-        src="${this.escapeHtml(node.link)}#toolbar=1&navpanes=0&scrollbar=1" 
+        src="${this.escapeHtml(actualLink)}#toolbar=1&navpanes=0&scrollbar=1" 
         width="100%" 
         height="100%" 
         frameborder="0">
@@ -852,7 +865,7 @@ export class NotesEditor {
     
     // Fallback for other links
     return `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
-      <a href="${this.escapeHtml(node.link)}" target="_blank" rel="noopener noreferrer" style="color: #007acc; text-decoration: none;">
+      <a href="${this.escapeHtml(actualLink)}" target="_blank" rel="noopener noreferrer" style="color: #007acc; text-decoration: none;">
         Open Document: ${this.escapeHtml(node.title || node.link)}
       </a>
     </div>`;
@@ -868,7 +881,7 @@ export class NotesEditor {
   }
 
   isPdfUrl(url) {
-    return /\.pdf(\?.*)?$/i.test(url) || url.includes('pdf');
+    return /\.pdf(\?.*)?$/i.test(url) || url.includes('pdf') || url.startsWith('blob:');
   }
 
   escapeHtml(text) {

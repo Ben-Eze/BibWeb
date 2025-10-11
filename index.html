@@ -14,6 +14,8 @@
   <!-- KaTeX for LaTeX support -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <!-- JSZip for creating project ZIP exports -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
   <div id="documentToolbar">
@@ -33,6 +35,10 @@
       <button id="switchPhysics">🕸️</button>
     </div>
     <input id="importFile" type="file" accept=".json" style="display:none" />
+    <!-- Import a full project directory (web.json + assets). Some browsers support directory selection via webkitdirectory -->
+    <input id="importProject" type="file" webkitdirectory directory multiple style="display:none" />
+    <!-- Import project as ZIP file -->
+    <input id="importProjectZip" type="file" accept=".zip" style="display:none" />
   </div>
   <div id="network">
     <div class="edges"></div>
@@ -66,13 +72,15 @@
         <div class="form-group">
           <label>Type</label>
           <div class="type-switch">
-            <button type="button" id="typePaper" class="type-btn active">Paper</button>
+            <button type="button" id="typePaperUrl" class="type-btn active">Paper (URL)</button>
+            <button type="button" id="typePaperFile" class="type-btn">Paper (File)</button>
             <button type="button" id="typeVideo" class="type-btn">Video</button>
           </div>
         </div>
         <div class="form-group">
           <label for="paperLink" id="linkLabel">PDF URL</label>
           <input type="url" id="paperLink" placeholder="https://...">
+          <input type="file" id="paperFile" accept=".pdf,application/pdf" style="display:none">
         </div>
         <div class="form-group">
           <label for="paperNotes">Notes</label>

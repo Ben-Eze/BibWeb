@@ -28,8 +28,21 @@ export function setupNodeOverlays(network, nodes, edges) {
       return 'paper'; // Default placeholder text
     }
 
-    if (node.type === 'video' && isYouTubeUrl(node.link)) {
-      const videoId = extractYouTubeId(node.link);
+    // Check if this is a session asset link (assets/<filename>)
+    let actualLink = node.link;
+    if (node.link.startsWith('assets/')) {
+      const filename = node.link.substring(7); // Remove 'assets/' prefix
+      if (typeof window._getSessionAssetBlob === 'function') {
+        const blob = window._getSessionAssetBlob(filename);
+        if (blob) {
+          // Create a Blob URL for this session asset
+          actualLink = URL.createObjectURL(blob);
+        }
+      }
+    }
+
+    if (node.type === 'video' && isYouTubeUrl(actualLink)) {
+      const videoId = extractYouTubeId(actualLink);
       if (videoId) {
         return `<iframe 
           src="https://www.youtube.com/embed/${videoId}" 
@@ -39,9 +52,9 @@ export function setupNodeOverlays(network, nodes, edges) {
           allowfullscreen>
         </iframe>`;
       }
-    } else if (node.type === 'paper' && isPdfUrl(node.link)) {
+    } else if ((node.type === 'paper-url' || node.type === 'paper-file' || node.type === 'paper') && isPdfUrl(actualLink)) {
       return `<iframe 
-        src="${escapeHtml(node.link)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
+        src="${escapeHtml(actualLink)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH" 
         width="100%" 
         height="120" 
         frameborder="0">
@@ -49,7 +62,7 @@ export function setupNodeOverlays(network, nodes, edges) {
     }
     
     // Fallback: show a link
-    return `<a href="${escapeHtml(node.link)}" target="_blank" style="color: #2B7CE9; text-decoration: none;">
+    return `<a href="${escapeHtml(actualLink)}" target="_blank" style="color: #2B7CE9; text-decoration: none;">
       ${node.type === 'video' ? '📹 View Video' : '📄 View Paper'}
     </a>`;
   }
@@ -64,7 +77,7 @@ export function setupNodeOverlays(network, nodes, edges) {
   }
 
   function isPdfUrl(url) {
-    return /\.pdf$/i.test(url) || url.includes('pdf');
+    return /\.pdf$/i.test(url) || url.includes('pdf') || url.startsWith('blob:');
   }
 
   function createOverlay(node) {
@@ -556,6 +569,25 @@ export function setupNodeOverlays(network, nodes, edges) {
   window._switchToPreviewMode = (nodeId) => {
     // Exit fullscreen editor mode
     notesEditor.exitFullscreenEditor(nodeId);
+  };
+
+  // Refresh overlays after assets are restored
+  window._refreshNodeOverlays = function() {
+    console.log('[Overlays] Refreshing viewer content for all nodes');
+    overlayMap.forEach((el, nodeId) => {
+      const node = nodes.get(nodeId);
+      if (node && node.link && node.link.startsWith('assets/')) {
+        // Find the viewer-container and update it
+        const viewerContainer = el.querySelector('.viewer-container');
+        if (viewerContainer) {
+          const newViewerContent = createViewerContent(node);
+          viewerContainer.innerHTML = newViewerContent;
+          console.log('[Overlays] Refreshed viewer for node', nodeId, node.title);
+        } else {
+          console.log('[Overlays] Could not find .viewer-container for node:', nodeId);
+        }
+      }
+    });
   };
 
   function escapeHtml(s) {
