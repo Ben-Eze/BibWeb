@@ -1,13 +1,27 @@
 // Handles documentToolbar logic: layout switching, add paper, export/import
 // Exports: setupDocumentToolbar(network, nodes, edges)
+import { saveAsset, getAsset, getAllAssets, initAssetStorage, saveSetting, getSetting } from './assetStorage.js';
 
-export function setupDocumentToolbar(network, nodes, edges) {
-  // In-memory map of asset filename -> Blob (for PDFs and other files users attach)
-  // This is intentionally simple: files are stored for the session and included on export.
+export async function setupDocumentToolbar(network, nodes, edges) {
+  // Initialize IndexedDB for assets
+  await initAssetStorage();
+  
+  // In-memory map for quick access (IndexedDB is primary storage)
   const sessionAssets = new Map();
+  
+  // Load assets from IndexedDB into session memory
+  try {
+    const assets = await getAllAssets();
+    Object.entries(assets).forEach(([name, blob]) => {
+      sessionAssets.set(name, blob);
+    });
+    console.log(`[Assets] Loaded ${sessionAssets.size} assets from IndexedDB`);
+  } catch (e) {
+    console.error('[Assets] Failed to load from IndexedDB', e);
+  }
 
-  // Helper to register an asset (file) into sessionAssets. Returns the filename used.
-  function registerAsset(file) {
+  // Helper to register an asset (file) into sessionAssets and IndexedDB
+  async function registerAsset(file) {
     // Use the original file name; if collision, append a numeric suffix
     let base = file.name;
     let name = base;
@@ -20,6 +34,12 @@ export function setupDocumentToolbar(network, nodes, edges) {
       i += 1;
     }
     sessionAssets.set(name, file);
+    
+    // Save to IndexedDB (non-blocking)
+    saveAsset(name, file).catch(e => {
+      console.error(`[Assets] Failed to save ${name} to IndexedDB`, e);
+    });
+    
     return name;
   }
 
@@ -34,74 +54,10 @@ export function setupDocumentToolbar(network, nodes, edges) {
     }
     return blob || null;
   };
-  window._registerSessionAsset = function(file) {
-    const name = registerAsset(file);
+  window._registerSessionAsset = async function(file) {
+    const name = await registerAsset(file);
     console.log('[Assets] Registered', name, 'Total assets:', sessionAssets.size);
     return name;
-  };
-  
-  // Convert session assets to/from localStorage-friendly format (base64 data URLs)
-  window._getSessionAssetsForStorage = async function() {
-    const assetsData = {};
-    const promises = [];
-    
-    console.log('[Assets] Saving', sessionAssets.size, 'assets to localStorage');
-    
-    sessionAssets.forEach((file, filename) => {
-      // Only save files under 5MB to avoid localStorage quota issues
-      if (file.size <= 5 * 1024 * 1024) {
-        const promise = new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            assetsData[filename] = {
-              dataUrl: e.target.result,
-              type: file.type,
-              size: file.size
-            };
-            console.log('[Assets] Serialized', filename, 'Size:', file.size, 'bytes');
-            resolve();
-          };
-          reader.readAsDataURL(file);
-        });
-        promises.push(promise);
-      } else {
-        console.warn('[Assets] Skipping large file:', filename, 'Size:', file.size, 'bytes (>5MB)');
-      }
-    });
-    
-    await Promise.all(promises);
-    console.log('[Assets] Finished serializing', Object.keys(assetsData).length, 'assets');
-    return assetsData;
-  };
-  
-  window._restoreSessionAssets = function(assetsData) {
-    const count = Object.keys(assetsData).length;
-    console.log('[Assets] Restoring', count, 'assets from localStorage');
-    
-    const promises = [];
-    Object.entries(assetsData).forEach(([filename, assetInfo]) => {
-      // Convert data URL back to Blob
-      const promise = fetch(assetInfo.dataUrl)
-        .then(res => res.blob())
-        .then(blob => {
-          // Create a File object from the Blob
-          const file = new File([blob], filename, { type: assetInfo.type });
-          sessionAssets.set(filename, file);
-          console.log('[Assets] Restored', filename);
-        })
-        .catch(err => {
-          console.error(`[Assets] Failed to restore ${filename}:`, err);
-        });
-      promises.push(promise);
-    });
-    
-    // After all assets are restored, refresh any overlays that need them
-    Promise.all(promises).then(() => {
-      console.log('[Assets] All assets restored, refreshing overlays');
-      if (typeof window._refreshNodeOverlays === 'function') {
-        window._refreshNodeOverlays();
-      }
-    });
   };
 
   // Ensure any currently selected nodes are reset to default visuals before deselecting
@@ -419,7 +375,7 @@ export function setupDocumentToolbar(network, nodes, edges) {
     }
   });
 
-  document.getElementById('exportBtn').addEventListener('click', () => {
+  document.getElementById('exportBtn').addEventListener('click', async () => {
     const data = { nodes: nodes.get(), edges: edges.get() };
     
     // Get current node positions and add them to the export data
@@ -438,34 +394,152 @@ export function setupDocumentToolbar(network, nodes, edges) {
     
     // If we have session assets (local PDFs), export as a project ZIP: web.json + assets/
     if (sessionAssets.size > 0 && typeof JSZip !== 'undefined') {
-      const zip = new JSZip();
-      zip.file('web.json', JSON.stringify(data, null, 2));
-      const assetsFolder = zip.folder('assets');
-      sessionAssets.forEach((file, filename) => {
-        assetsFolder.file(filename, file);
-      });
-      zip.generateAsync({ type: 'blob' }).then((zblob) => {
-        const url = URL.createObjectURL(zblob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'paper-web-project.zip';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      });
+      try {
+        const zip = new JSZip();
+        zip.file('web.json', JSON.stringify(data, null, 2));
+        const assetsFolder = zip.folder('assets');
+        sessionAssets.forEach((file, filename) => {
+          assetsFolder.file(filename, file);
+        });
+        
+        const blob = await zip.generateAsync({ type: 'blob' });
+        
+        // Try to use File System Access API (Chrome/Edge only)
+        if ('showSaveFilePicker' in window) {
+          try {
+            // Try to get the last saved directory handle
+            const lastDirHandle = await getSetting('lastExportDirectory');
+            
+            const options = {
+              suggestedName: 'paper-web-project.zip',
+              types: [{
+                description: 'ZIP Archive',
+                accept: { 'application/zip': ['.zip'] }
+              }]
+            };
+            
+            // If we have a saved directory, try to use it as the starting directory
+            if (lastDirHandle) {
+              try {
+                // Verify we still have permission to the directory
+                const permission = await lastDirHandle.queryPermission({ mode: 'readwrite' });
+                if (permission === 'granted') {
+                  options.startIn = lastDirHandle;
+                  console.log('[Export] Using last saved directory');
+                }
+              } catch (e) {
+                console.log('[Export] Could not access last directory:', e);
+              }
+            }
+            
+            const handle = await window.showSaveFilePicker(options);
+            
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            
+            // Save the parent directory handle for next time
+            try {
+              const parent = await handle.getParent();
+              if (parent) {
+                await saveSetting('lastExportDirectory', parent);
+                console.log('[Export] Saved directory for next time');
+              }
+            } catch (e) {
+              console.log('[Export] Could not save directory handle:', e);
+            }
+            
+            console.log('[Export] Saved to:', handle.name);
+          } catch (e) {
+            if (e.name !== 'AbortError') {
+              console.error('[Export] File System Access failed:', e);
+              // Fallback to regular download
+              downloadBlob(blob, 'paper-web-project.zip');
+            }
+          }
+        } else {
+          // Fallback to regular download
+          downloadBlob(blob, 'paper-web-project.zip');
+        }
+      } catch (e) {
+        console.error('[Export] Failed to create ZIP:', e);
+        alert('Export failed: ' + e.message);
+      }
     } else {
+      // No assets, export simple JSON
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'paper-web-export.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      
+      // Try to use File System Access API
+      if ('showSaveFilePicker' in window) {
+        try {
+          // Try to get the last saved directory handle
+          const lastDirHandle = await getSetting('lastExportDirectory');
+          
+          const options = {
+            suggestedName: 'paper-web-export.json',
+            types: [{
+              description: 'JSON File',
+              accept: { 'application/json': ['.json'] }
+            }]
+          };
+          
+          // If we have a saved directory, try to use it as the starting directory
+          if (lastDirHandle) {
+            try {
+              // Verify we still have permission to the directory
+              const permission = await lastDirHandle.queryPermission({ mode: 'readwrite' });
+              if (permission === 'granted') {
+                options.startIn = lastDirHandle;
+                console.log('[Export] Using last saved directory');
+              }
+            } catch (e) {
+              console.log('[Export] Could not access last directory:', e);
+            }
+          }
+          
+          const handle = await window.showSaveFilePicker(options);
+          
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          
+          // Save the parent directory handle for next time
+          try {
+            const parent = await handle.getParent();
+            if (parent) {
+              await saveSetting('lastExportDirectory', parent);
+              console.log('[Export] Saved directory for next time');
+            }
+          } catch (e) {
+            console.log('[Export] Could not save directory handle:', e);
+          }
+          
+          console.log('[Export] Saved to:', handle.name);
+        } catch (e) {
+          if (e.name !== 'AbortError') {
+            console.error('[Export] File System Access failed:', e);
+            // Fallback to regular download
+            downloadBlob(blob, 'paper-web-export.json');
+          }
+        }
+      } else {
+        // Fallback to regular download
+        downloadBlob(blob, 'paper-web-export.json');
+      }
     }
   });
+  
+  // Helper function to download a blob (fallback for browsers without File System Access API)
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
 
   document.getElementById('importBtn').addEventListener('click', () => {
     // Ask user whether to import ZIP or directory
@@ -587,10 +661,10 @@ export function setupDocumentToolbar(network, nodes, edges) {
             assetFolder.forEach((relativePath, file) => {
               if (!file.dir) {
                 assetPromises.push(
-                  file.async('blob').then(blob => {
+                  file.async('blob').then(async blob => {
                     const fileName = relativePath;
                     const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
-                    registerAsset(fileObj);
+                    await registerAsset(fileObj);
                   })
                 );
               }
@@ -622,7 +696,7 @@ export function setupDocumentToolbar(network, nodes, edges) {
       let parsed = null;
       const assetFiles = files.filter(f => f.name && !/web\.json/i.test(f.name));
 
-      // Register asset files
+      // Register asset files (fire and forget - assets save async to IndexedDB)
       assetFiles.forEach(f => registerAsset(f));
 
       if (webFile) {
@@ -682,10 +756,10 @@ export function setupDocumentToolbar(network, nodes, edges) {
           assetFolder.forEach((relativePath, file) => {
             if (!file.dir) {
               assetPromises.push(
-                file.async('blob').then(blob => {
+                file.async('blob').then(async blob => {
                   const fileName = relativePath;
                   const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
-                  registerAsset(fileObj);
+                  await registerAsset(fileObj);
                 })
               );
             }
@@ -744,10 +818,10 @@ export function setupDocumentToolbar(network, nodes, edges) {
           assetFolder.forEach((relativePath, file) => {
             if (!file.dir) {
               assetPromises.push(
-                file.async('blob').then(blob => {
+                file.async('blob').then(async blob => {
                   const fileName = relativePath;
                   const fileObj = new File([blob], fileName, { type: blob.type || 'application/pdf' });
-                  registerAsset(fileObj);
+                  await registerAsset(fileObj);
                 })
               );
             }
@@ -798,7 +872,7 @@ export function setupDocumentToolbar(network, nodes, edges) {
     // Otherwise, treat dropped PDF files as assets to register and open file dialog in paper form
     const pdfs = files.filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (pdfs.length > 0) {
-      // Register assets and prompt to attach to a new paper
+      // Register assets (fire and forget - assets save async to IndexedDB)
       pdfs.forEach(f => registerAsset(f));
       alert(`${pdfs.length} PDF(s) registered for this session. When adding a paper, choose from attached files in the "PDF URL" field.`);
     }

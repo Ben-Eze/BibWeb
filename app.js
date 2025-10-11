@@ -8,10 +8,10 @@ import './errorNotifications.js'; // Enable error notifications
 // Global flag to indicate modules loaded successfully
 window.setupNetwork = setupNetwork;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const { network, nodes, edges, NOTES_MODE } = setupNetwork();
   setupPaperForm();
-  setupDocumentToolbar(network, nodes, edges); // Setup toolbar BEFORE loading storage so _restoreSessionAssets exists
+  await setupDocumentToolbar(network, nodes, edges); // Setup toolbar BEFORE loading storage (now async for IndexedDB)
   loadFromStorage(nodes, edges, network);
   // Ensure labels are empty so overlays display the title/author instead of canvas labels
   if (nodes && typeof nodes.get === 'function') {

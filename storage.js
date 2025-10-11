@@ -1,8 +1,6 @@
-// Handles localStorage, import/export logic
+// Handles localStorage for graph data only (assets now in IndexedDB via assetStorage.js)
 // Exports: loadFromStorage(nodes, edges), saveToStorage(nodes, edges)
 const STORAGE_KEY = 'paper-web-data-v1';
-const ASSETS_STORAGE_KEY = 'paper-web-assets-v1';
-const MAX_ASSET_SIZE = 5 * 1024 * 1024; // 5MB limit for localStorage
 
 export function loadFromStorage(nodes, edges, network) {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -11,17 +9,6 @@ export function loadFromStorage(nodes, edges, network) {
     const obj = JSON.parse(raw);
     nodes.clear();
     edges.clear();
-    
-    // Restore session assets from localStorage
-    const assetsRaw = localStorage.getItem(ASSETS_STORAGE_KEY);
-    if (assetsRaw && typeof window._restoreSessionAssets === 'function') {
-      try {
-        const assetsData = JSON.parse(assetsRaw);
-        window._restoreSessionAssets(assetsData);
-      } catch (e) {
-        console.error('Failed to restore session assets', e);
-      }
-    }
     
     if (obj.nodes) {
       nodes.add(obj.nodes);
@@ -104,27 +91,4 @@ export function saveToStorage(nodes, edges, network) {
   
   const data = { nodes: nodeData, edges: edges.get() };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  
-  // Save session assets to localStorage (async, fire-and-forget)
-  if (typeof window._getSessionAssetsForStorage === 'function') {
-    console.log('[Storage] Starting async asset save...');
-    window._getSessionAssetsForStorage().then(assetsData => {
-      try {
-        const assetCount = Object.keys(assetsData).length;
-        console.log('[Storage] Saving', assetCount, 'assets to localStorage');
-        localStorage.setItem(ASSETS_STORAGE_KEY, JSON.stringify(assetsData));
-        console.log('[Storage] Assets saved successfully');
-      } catch (e) {
-        console.error('Failed to save session assets', e);
-        // If localStorage is full, warn the user
-        if (e.name === 'QuotaExceededError') {
-          console.warn('localStorage quota exceeded. Assets not saved. Please export as ZIP to preserve files.');
-        }
-      }
-    }).catch(e => {
-      console.error('Failed to serialize session assets', e);
-    });
-  } else {
-    console.warn('[Storage] _getSessionAssetsForStorage function not available');
-  }
 }

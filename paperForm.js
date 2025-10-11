@@ -149,10 +149,22 @@ export function setupPaperForm() {
     if (currentType === 'paper-file') {
       const file = fileInput.files[0];
       if (file) {
-        // Register the file as a session asset
+        // Register the file as a session asset (async)
         if (typeof window._registerSessionAsset === 'function') {
-          const assetName = window._registerSessionAsset(file);
-          formData.link = `assets/${assetName}`;
+          // Since _registerSessionAsset is now async, we need to handle it
+          window._registerSessionAsset(file).then(assetName => {
+            formData.link = `assets/${assetName}`;
+            
+            if (currentCallback) {
+              currentCallback(formData);
+            }
+            
+            hideForm();
+          }).catch(err => {
+            console.error('Failed to register asset:', err);
+            alert('Failed to register PDF file. Please try again.');
+          });
+          return; // Exit early, callback will be called after asset is registered
         } else {
           alert('Asset registration not available. Please reload the page.');
           return;
