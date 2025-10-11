@@ -2,6 +2,7 @@
 // Exports: setupNetwork()
 import { setupEdgeToolbar } from './edgeToolbar.js';
 import { setupNodeOverlays } from './nodeOverlays.js';
+import { getColorHex, DEFAULT_COLOR } from './colors.js';
 
 const SELECTED_WIDTH = 400;
 const SELECTED_HEIGHT = Math.round(SELECTED_WIDTH * 1.414); // A4 aspect ratio
@@ -259,9 +260,22 @@ export function setupNetwork() {
 			doi: doi,
 			link: link,
 			type: type,
-			notes, 
+			notes,
+			colorId: DEFAULT_COLOR, // Default color for new nodes
 			label: formatLabel({ title, authors }), 
-			shape: 'box' 
+			shape: 'box',
+			color: {
+				background: getColorHex(DEFAULT_COLOR),
+				border: getColorHex(DEFAULT_COLOR),
+				highlight: {
+					background: getColorHex(DEFAULT_COLOR),
+					border: getColorHex(DEFAULT_COLOR)
+				},
+				hover: {
+					background: getColorHex(DEFAULT_COLOR),
+					border: getColorHex(DEFAULT_COLOR)
+				}
+			}
 		};
 		nodes.add(node);
 		network.focus(id, { scale: 1.2, animation: true });
@@ -289,9 +303,42 @@ export function setupNetwork() {
 		// Note: Assets are now automatically saved to IndexedDB when registered (see toolbar.js)
 	}
 
-	// Expose for toolbar.js
+	// Function to change node color
+	function changeNodeColor(nodeId, colorId) {
+		console.log('changeNodeColor called:', nodeId, colorId);
+		const node = nodes.get(nodeId);
+		if (!node) {
+			console.log('Node not found:', nodeId);
+			return;
+		}
+		
+		const colorHex = getColorHex(colorId);
+		console.log('Color hex:', colorHex);
+		nodes.update({
+			id: nodeId,
+			colorId: colorId, // Store the color ID
+			color: {
+				background: colorHex,
+				border: colorHex,
+				highlight: {
+					background: colorHex,
+					border: colorHex
+				},
+				hover: {
+					background: colorHex,
+					border: colorHex
+				}
+			}
+		});
+		console.log('Node updated with color');
+		
+		saveToStorage();
+	}
+
+	// Expose for toolbar.js and overlays
 	window._addOrGetPaper = addOrGetPaper;
 	window._saveToStorage = saveToStorage;
+	window._changeNodeColor = changeNodeColor;
 	window._setupNodeOverlays = () => setupNodeOverlays(network, nodes, edges);
 
 	setupEdgeToolbar(network, nodes, edges);
@@ -302,12 +349,31 @@ export function setupNetwork() {
 	// Enforce default visuals for any nodes as they are added (including during loadFromStorage)
 	nodes.on('add', (e) => {
 		if (e && Array.isArray(e.items) && e.items.length) {
-			const updates = e.items.map((id) => ({
-				id,
-				widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
-				heightConstraint: { minimum: DEFAULT_HEIGHT },
-				font: { size: 16 },
-			}));
+			const updates = e.items.map((id) => {
+				const node = nodes.get(id);
+				const colorId = node.colorId || DEFAULT_COLOR;
+				const colorHex = getColorHex(colorId);
+				
+				return {
+					id,
+					widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
+					heightConstraint: { minimum: DEFAULT_HEIGHT },
+					font: { size: 16 },
+					colorId: colorId,
+					color: {
+						background: colorHex,
+						border: colorHex,
+						highlight: {
+							background: colorHex,
+							border: colorHex
+						},
+						hover: {
+							background: colorHex,
+							border: colorHex
+						}
+					}
+				};
+			});
 			nodes.update(updates);
 		}
 	});

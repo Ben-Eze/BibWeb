@@ -1,5 +1,6 @@
 // Per-node floating overlays that mirror node size/position and host title + toolbar
 import { NotesEditor } from './notesEditor.js';
+import { NODE_COLORS, getColorHex, getTextColor, DEFAULT_COLOR } from './colors.js';
 
 export function setupNodeOverlays(network, nodes, edges) {
   const overlayMap = new Map(); // nodeId -> HTMLElement
@@ -214,6 +215,59 @@ export function setupNodeOverlays(network, nodes, edges) {
   // initialize floating lock to current state
     const initLocked = (nodes.get(node.id) || {}).physics === false;
     setLockUI(initLocked);
+    
+    // Floating color picker button (top-left)
+    const colorFloatBtn = document.createElement('button');
+    colorFloatBtn.className = 'node-overlay__btnColorFloating';
+    colorFloatBtn.style.pointerEvents = 'auto';
+    colorFloatBtn.textContent = '🎨';
+    colorFloatBtn.title = 'Change color';
+    
+    // Create color dropdown
+    const colorDropdown = document.createElement('div');
+    colorDropdown.className = 'node-overlay__colorDropdown';
+    colorDropdown.style.pointerEvents = 'auto';
+    colorDropdown.style.display = 'none';
+    
+    NODE_COLORS.forEach(color => {
+      const colorOption = document.createElement('button');
+      colorOption.className = 'node-overlay__colorOption';
+      colorOption.style.backgroundColor = color.hex;
+      colorOption.title = color.name;
+      colorOption.dataset.colorId = color.id;
+      
+      colorOption.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof window._changeNodeColor === 'function') {
+          window._changeNodeColor(node.id, color.id);
+          
+          // Update the overlay card color immediately
+          const card = el.querySelector('.node-overlay__card');
+          const colorHex = getColorHex(color.id);
+          const textColor = getTextColor(color.id);
+          card.style.backgroundColor = colorHex;
+          card.style.borderColor = colorHex;
+          card.style.color = textColor;
+        }
+        colorDropdown.style.display = 'none';
+      });
+      
+      colorDropdown.appendChild(colorOption);
+    });
+    
+    colorFloatBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isVisible = colorDropdown.style.display === 'block';
+      colorDropdown.style.display = isVisible ? 'none' : 'block';
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!colorFloatBtn.contains(e.target) && !colorDropdown.contains(e.target)) {
+        colorDropdown.style.display = 'none';
+      }
+    });
+    
     // Floating add button (bottom-center)
     const addFloatBtn = document.createElement('button');
     addFloatBtn.className = 'node-overlay__btnAddFloating';
@@ -317,8 +371,19 @@ export function setupNodeOverlays(network, nodes, edges) {
     });
 
     const card = el.querySelector('.node-overlay__card');
+    
+    // Set card background color based on node's color
+    const nodeColorId = node.colorId || DEFAULT_COLOR;
+    const colorHex = getColorHex(nodeColorId);
+    const textColor = getTextColor(nodeColorId);
+    card.style.backgroundColor = colorHex;
+    card.style.borderColor = colorHex;
+    card.style.color = textColor;
+    
     card.appendChild(lockFloatBtn);
     card.appendChild(addFloatBtn);
+    card.appendChild(colorFloatBtn);
+    card.appendChild(colorDropdown);
   // removed bottom-toolbar add handler (using floating add instead)
     toolbar.querySelector('.btn-edit').addEventListener('click', (e) => {
       e.stopPropagation();

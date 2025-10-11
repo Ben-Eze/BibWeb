@@ -319,7 +319,8 @@ body {
 
 /* Floating controls visible on hover or when selected */
 .node-overlay__btnLockFloating,
-.node-overlay__btnAddFloating {
+.node-overlay__btnAddFloating,
+.node-overlay__btnColorFloating {
     position: absolute;
     border: none;
     background: rgba(255,255,255,1);
@@ -329,6 +330,7 @@ body {
     font-size: calc(12px * var(--zoom-scale,1));
     cursor: pointer;
     display: none; /* default hidden */
+    z-index: 10;
 }
 
 /* Lock: top-left inside the card */
@@ -346,11 +348,20 @@ body {
     transform: translate(-50%, 25%);
 }
 
+/* Color: top-left inside the card */
+.node-overlay__btnColorFloating {
+    top: 0;
+    left: 0;
+    transform: translate(-25%,-25%);
+}
+
 /* Show on hover or selection */
 .node-overlay.is-hover .node-overlay__btnLockFloating,
 .node-overlay.is-hover .node-overlay__btnAddFloating,
+.node-overlay.is-hover .node-overlay__btnColorFloating,
 .node-overlay.is-selected .node-overlay__btnLockFloating,
-.node-overlay.is-selected .node-overlay__btnAddFloating {
+.node-overlay.is-selected .node-overlay__btnAddFloating,
+.node-overlay.is-selected .node-overlay__btnColorFloating {
     display: inline-block;
 }
 
@@ -358,6 +369,55 @@ body {
 .node-overlay.is-locked .node-overlay__btnLockFloating {
     display: inline-block;
 }
+
+/* Color dropdown */
+.node-overlay__colorDropdown {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(-25%, calc(-100% - 8px));
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 11;
+}
+
+.node-overlay__colorDropdown.show {
+    display: flex;
+}
+
+.node-overlay__colorOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+}
+
+.node-overlay__colorOption:hover {
+    background: #f0f0f0;
+}
+
+.node-overlay__colorSwatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.2);
+    flex-shrink: 0;
+}
+
+.node-overlay__colorName {
+    font-size: 12px;
+    color: #333;
+}
+
 
 #addPaperBtn {
     background: #222;
