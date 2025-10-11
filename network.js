@@ -189,14 +189,17 @@ export function setupNetwork() {
 		}
 	});
 	network.on('deselectNode', function (params) {
-		// Restore previous nodes to default size
+		// Restore previous nodes to default size (only if they still exist)
 		lastSelectedNodes.forEach(nodeId => {
-			nodes.update({
-				id: nodeId,
-				widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
-				heightConstraint: { minimum: DEFAULT_HEIGHT },
-				font: { size: 16 }
-			});
+			// Check if node still exists before updating
+			if (nodes.get(nodeId)) {
+				nodes.update({
+					id: nodeId,
+					widthConstraint: { minimum: DEFAULT_WIDTH, maximum: DEFAULT_WIDTH },
+					heightConstraint: { minimum: DEFAULT_HEIGHT },
+					font: { size: 16 }
+				});
+			}
 		});
 		lastSelectedNodes = [];
 	});
