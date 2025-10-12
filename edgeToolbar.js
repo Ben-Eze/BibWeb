@@ -16,6 +16,38 @@ export function setupEdgeToolbar(network, nodes, edges) {
 
   let currentEdgeId = null;
 
+  // Function to update toolbar position
+  function updateToolbarPosition() {
+    if (!currentEdgeId || edgeToolbar.classList.contains('hidden')) return;
+    
+    const edge = edges.get(currentEdgeId);
+    if (!edge) {
+      hideToolbar();
+      return;
+    }
+    
+    // Get edge midpoint in DOM coordinates
+    const fromPos = network.getPositions([edge.from])[edge.from];
+    const toPos = network.getPositions([edge.to])[edge.to];
+    if (!fromPos || !toPos) {
+      hideToolbar();
+      return;
+    }
+    
+    const midX = (fromPos.x + toPos.x) / 2;
+    const midY = (fromPos.y + toPos.y) / 2;
+    const canvasPos = network.canvasToDOM({ x: midX, y: midY });
+    
+    // Update toolbar position
+    edgeToolbar.style.left = `${canvasPos.x - edgeToolbar.offsetWidth / 2}px`;
+    edgeToolbar.style.top = `${canvasPos.y - edgeToolbar.offsetHeight / 2}px`;
+  }
+
+  // Update toolbar position on various events
+  network.on('dragging', updateToolbarPosition);
+  network.on('zoom', updateToolbarPosition);
+  network.on('animationFinished', updateToolbarPosition);
+
   network.on('click', params => {
     // Only show edge toolbar if an edge is clicked and no node is clicked
     if (params.edges && params.edges.length === 1 && (!params.nodes || params.nodes.length === 0)) {
@@ -31,18 +63,14 @@ export function setupEdgeToolbar(network, nodes, edges) {
   function showToolbarNearEdge(edgeId) {
     const edge = edges.get(edgeId);
     if (!edge) return;
-    // Get edge midpoint in DOM coordinates
-    const fromPos = network.getPositions([edge.from])[edge.from];
-    const toPos = network.getPositions([edge.to])[edge.to];
-    const midX = (fromPos.x + toPos.x) / 2;
-    const midY = (fromPos.y + toPos.y) / 2;
-    const canvasPos = network.canvasToDOM({ x: midX, y: midY });
-    // Ensure toolbar is positioned absolutely at the midpoint
+    
+    // Show toolbar
     edgeToolbar.style.position = 'absolute';
-    edgeToolbar.style.left = `${canvasPos.x - edgeToolbar.offsetWidth / 2}px`;
-    edgeToolbar.style.top = `${canvasPos.y - edgeToolbar.offsetHeight / 2}px`;
     edgeToolbar.classList.remove('hidden');
     edgeToolbar.style.display = 'block';
+    
+    // Update position
+    updateToolbarPosition();
   }
   function hideToolbar() {
     edgeToolbar.classList.add('hidden');
