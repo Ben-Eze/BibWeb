@@ -6,6 +6,33 @@ export class NotesEditor {
     this.autoSaveTimeouts = new Map(); // nodeId -> timeout
   }
 
+  // Fix double-escaped backslashes in LaTeX formulas
+  // Toast UI Editor in WYSIWYG mode escapes backslashes, so we need to unescape them
+  fixLatexBackslashes(content) {
+    if (!content) return content;
+    
+    // Fix backslashes within inline math $...$
+    content = content.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
+      // Replace \\ with single \ within the formula
+      const fixed = formula.replace(/\\\\/g, '\\');
+      return `$${fixed}$`;
+    });
+    
+    // Fix backslashes within display math $$...$$
+    content = content.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+      // Replace \\ with single \ within the formula
+      const fixed = formula.replace(/\\/g, '\\');
+      return `$$${fixed}$$`;
+    });
+    
+    return content;
+  }
+
+  unescapeMarkdownText(text) {
+    if (!text) return text;
+    return text.replace(/\\([\\`*_{}\[\]()#+\-.!>])/g, '$1');
+  }
+
   // Create fullscreen editor mode
   createFullscreenEditor(nodeId, nodeData) {
     const container = document.createElement('div');
@@ -244,7 +271,9 @@ export class NotesEditor {
 
   setupAutoSave(nodeId, editor) {
     const autoSave = () => {
-      const content = editor ? editor.getMarkdown() : '';
+      let content = editor ? editor.getMarkdown() : '';
+      // Fix escaped backslashes in LaTeX formulas
+      content = this.fixLatexBackslashes(content);
       this.updateNodeNotes(nodeId, content);
       
       // Show save indicator
@@ -300,7 +329,9 @@ export class NotesEditor {
     // Final save before exit
     const editor = this.editors.get(nodeId);
     if (editor) {
-      const content = editor.getMarkdown();
+      let content = editor.getMarkdown();
+      // Fix escaped backslashes in LaTeX formulas
+      content = this.fixLatexBackslashes(content);
       this.updateNodeNotes(nodeId, content);
       editor.destroy();
       this.editors.delete(nodeId);
@@ -528,6 +559,8 @@ export class NotesEditor {
     
     if (editor) {
       content = editor.getMarkdown();
+      // Fix escaped backslashes in LaTeX formulas
+      content = this.fixLatexBackslashes(content);
       editor.destroy();
       this.editors.delete(nodeId);
     } else {
@@ -682,7 +715,8 @@ export class NotesEditor {
         
         // Convert markdown header to HTML
         const level = headerMatch[1].length;
-        const text = headerMatch[2];
+        const rawText = headerMatch[2];
+        const text = this.unescapeMarkdownText(rawText);
         const marginTop = level === 1 ? '1.5em' : level === 2 ? '1.2em' : '1em';
         const marginBottom = level === 1 ? '0.7em' : level === 2 ? '0.6em' : '0.5em';
         
@@ -690,7 +724,8 @@ export class NotesEditor {
       } else if (bulletMatch) {
         // Close any open paragraph
         if (currentParagraph) {
-          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          const paragraphText = this.unescapeMarkdownText(currentParagraph.trim());
+          processedLines.push(`<p style="margin: 0.5em 0;">${paragraphText}</p>`);
           currentParagraph = '';
         }
         
@@ -700,11 +735,13 @@ export class NotesEditor {
           inList = true;
           listType = 'ul';
         }
-        processedLines.push(`<li style="margin: 0.2em 0;">${bulletMatch[1]}</li>`);
+        const bulletText = this.unescapeMarkdownText(bulletMatch[1]);
+        processedLines.push(`<li style="margin: 0.2em 0;">${bulletText}</li>`);
       } else if (numberMatch) {
         // Close any open paragraph
         if (currentParagraph) {
-          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          const paragraphText = this.unescapeMarkdownText(currentParagraph.trim());
+          processedLines.push(`<p style="margin: 0.5em 0;">${paragraphText}</p>`);
           currentParagraph = '';
         }
         
@@ -714,11 +751,13 @@ export class NotesEditor {
           inList = true;
           listType = 'ol';
         }
-        processedLines.push(`<li style="margin: 0.2em 0;">${numberMatch[1]}</li>`);
+        const numberText = this.unescapeMarkdownText(numberMatch[1]);
+        processedLines.push(`<li style="margin: 0.2em 0;">${numberText}</li>`);
       } else if (line === '') {
         // Empty line - end current paragraph if exists
         if (currentParagraph) {
-          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          const paragraphText = this.unescapeMarkdownText(currentParagraph.trim());
+          processedLines.push(`<p style="margin: 0.5em 0;">${paragraphText}</p>`);
           currentParagraph = '';
         }
         // Close any open list
@@ -730,7 +769,8 @@ export class NotesEditor {
       } else if (line.match(/^```/) || line.includes('```')) {
         // Code block - close paragraph and list, add code block as-is
         if (currentParagraph) {
-          processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+          const paragraphText = this.unescapeMarkdownText(currentParagraph.trim());
+          processedLines.push(`<p style="margin: 0.5em 0;">${paragraphText}</p>`);
           currentParagraph = '';
         }
         if (inList) {
@@ -746,19 +786,14 @@ export class NotesEditor {
           inList = false;
           listType = '';
         }
-        
-        // Add to current paragraph with line break preservation
-        if (currentParagraph) {
-          currentParagraph += '<br>' + line;
-        } else {
-          currentParagraph = line;
-        }
+        currentParagraph += (currentParagraph ? ' ' : '') + line;
       }
     }
-    
+
     // Close any remaining paragraph or list
     if (currentParagraph) {
-      processedLines.push(`<p style="margin: 0.5em 0;">${currentParagraph.trim()}</p>`);
+      const paragraphText = this.unescapeMarkdownText(currentParagraph.trim());
+      processedLines.push(`<p style="margin: 0.5em 0;">${paragraphText}</p>`);
     }
     if (inList) {
       processedLines.push(`</${listType}>`);
