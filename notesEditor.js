@@ -11,15 +11,15 @@ export class NotesEditor {
   fixLatexBackslashes(content) {
     if (!content) return content;
     
-    // Fix backslashes within inline math $...$
-    content = content.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
+  // Fix backslashes within inline math $...$ (do not consume newlines)
+  content = content.replace(/\$([^$\n]+?)\$/g, (match, formula) => {
       // Replace \\ with single \ within the formula
       const fixed = formula.replace(/\\\\/g, '\\');
       return `$${fixed}$`;
     });
     
-    // Fix backslashes within display math $$...$$
-    content = content.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
+  // Fix backslashes within display math $$...$$ (multiline-safe)
+  content = content.replace(/\$\$([\s\S]*?)\$\$/g, (match, formula) => {
       // Replace \\ with single \ within the formula
       const fixed = formula.replace(/\\/g, '\\');
       return `$$${fixed}$$`;
@@ -93,19 +93,33 @@ export class NotesEditor {
     const editorEl = document.createElement('div');
     editorEl.className = 'notes-editor';
 
-    // Math button below editor
+  // Toolbar row above editor: preview toggle + math button
     const mathToolbar = document.createElement('div');
     mathToolbar.className = 'fullscreen-editor__math-toolbar';
+  mathToolbar.style.display = 'flex';
+  mathToolbar.style.justifyContent = 'space-between';
+  mathToolbar.style.alignItems = 'center';
     
-    const mathButton = document.createElement('button');
-    mathButton.className = 'math-insert-button';
-    mathButton.innerHTML = '∑ Equation';
-    mathButton.title = 'Insert LaTeX math formula';
+  // Preview toggle
+  const previewToggle = document.createElement('button');
+  previewToggle.className = 'math-insert-button';
+  previewToggle.innerHTML = '👁️ Preview';
+  previewToggle.title = 'Toggle preview of rendered notes';
     
-    mathToolbar.appendChild(mathButton);
+  const toolbarLeft = document.createElement('div');
+  const toolbarRight = document.createElement('div');
+  toolbarLeft.appendChild(previewToggle);
+  mathToolbar.appendChild(toolbarLeft);
+  mathToolbar.appendChild(toolbarRight);
 
-    editorSection.appendChild(editorEl);
-    editorSection.appendChild(mathToolbar);
+  // Preview container (re-uses notes view styling/renderer)
+  const previewEl = document.createElement('div');
+  previewEl.className = 'notes-view';
+  previewEl.style.display = 'none'; // hidden by default
+
+  editorSection.appendChild(mathToolbar);
+  editorSection.appendChild(editorEl);
+  editorSection.appendChild(previewEl);
     content.appendChild(viewer);
     content.appendChild(editorSection);
 
@@ -118,10 +132,30 @@ export class NotesEditor {
       this.exitFullscreenEditor(nodeId);
     });
 
-    // Math button handler
-    mathButton.addEventListener('click', (e) => {
+    // Preview toggle handler
+    previewToggle.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.insertMathFormula(nodeId);
+      const editor = this.editors.get(nodeId);
+      if (!editor) return;
+      const isPreviewVisible = previewEl.style.display !== 'none';
+      if (isPreviewVisible) {
+        // Switch to editor
+        previewEl.style.display = 'none';
+        editorEl.style.display = '';
+        // Show math button again in editor mode
+        previewToggle.innerHTML = '👁️ Preview';
+      } else {
+        // Switch to preview
+        // Get markdown and fix LaTeX escapes, then render
+        let md = editor.getMarkdown();
+        md = this.fixLatexBackslashes(md);
+        const html = this.markdownToHtml(md);
+        previewEl.innerHTML = html;
+        previewEl.style.display = '';
+        editorEl.style.display = 'none';
+        // Hide math insert button in preview mode
+        previewToggle.innerHTML = '✏️ Edit';
+      }
     });
 
     // Test KaTeX availability on page load
@@ -182,11 +216,18 @@ export class NotesEditor {
         editor.changeMode('wysiwyg', true);
         this.editors.set(nodeId, editor);
 
-        // Set up math button functionality
-        this.setupMathButton(editor);
-
         // Set up auto-save
         this.setupAutoSave(nodeId, editor);
+
+        // Live-update preview if visible
+        editor.on('change', () => {
+          const previewEl = editorEl.parentElement && editorEl.parentElement.querySelector('.notes-view');
+          if (previewEl && previewEl.style.display !== 'none') {
+            let md = editor.getMarkdown();
+            md = this.fixLatexBackslashes(md);
+            previewEl.innerHTML = this.markdownToHtml(md);
+          }
+        });
         
       } catch (error) {
         console.error('Toast UI Editor failed to initialize:', error);
@@ -195,11 +236,6 @@ export class NotesEditor {
     } else {
       this.createFallbackTextarea(editorEl, initialContent, nodeId);
     }
-  }
-
-  setupMathButton(editor) {
-    // Since we're adding the math button outside the Toast UI toolbar,
-    // we don't need to modify the toolbar here anymore
   }
 
   testKaTeX() {
@@ -507,8 +543,15 @@ export class NotesEditor {
         // Force WYSIWYG mode; CSS already hides mode switch & markdown UI
         editor.changeMode('wysiwyg', true);
         
-        // Set up math button functionality
-        this.setupMathButton(editor);
+        // Live-update preview if visible
+        editor.on('change', () => {
+          const previewEl = editorEl.parentElement && editorEl.parentElement.querySelector('.notes-view');
+          if (previewEl && previewEl.style.display !== 'none') {
+            let md = editor.getMarkdown();
+            md = this.fixLatexBackslashes(md);
+            previewEl.innerHTML = this.markdownToHtml(md);
+          }
+        });
         
         this.editors.set(nodeId, editor);
       } catch (error) {
@@ -786,7 +829,8 @@ export class NotesEditor {
           inList = false;
           listType = '';
         }
-        currentParagraph += (currentParagraph ? ' ' : '') + line;
+        // Preserve single newlines within a paragraph as <br>
+        currentParagraph += (currentParagraph ? '<br>' : '') + line;
       }
     }
 

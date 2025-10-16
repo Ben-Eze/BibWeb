@@ -698,6 +698,20 @@ body {
     flex: 1;
 }
 
+.fullscreen-editor__editor .notes-view {
+    /* Match editor area layout */
+    order: 1;               /* same as .notes-editor */
+    flex: 1;                /* take remaining vertical space */
+    min-height: 0;          /* allow proper flex overflow */
+    overflow-y: auto;       /* scroll like editor content */
+    padding: 10px;          /* match .toastui-editor .ProseMirror padding */
+    background: white;      /* same background */
+    color: #333;            /* matching text color */
+    font-size: 14px;        /* match fullscreen editor font size */
+    line-height: 1.6;       /* match editor line height */
+    text-align: left;       /* left align content */
+}
+
 .fullscreen-editor__title {
     font-size: 24px;
     font-weight: bold;
