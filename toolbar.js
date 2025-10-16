@@ -528,6 +528,74 @@ export async function setupDocumentToolbar(network, nodes, edges) {
       }
     }
   });
+
+  // --- Close confirmation (Save / Don't save / Cancel) ---
+  // Browsers restrict customizing the native beforeunload dialog. We trigger it,
+  // and if the user chooses to stay, we then show our custom 3-option modal.
+  let _beforeUnloadHandler;
+  let _closeModalEl;
+  function _ensureCloseModal() {
+    if (_closeModalEl) return _closeModalEl;
+    const modal = document.createElement('div');
+    modal.className = 'modal hidden';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Save changes?</h3>
+          <button class="modal-close" title="Close">×</button>
+        </div>
+        <div style="padding:16px;">
+          <p>If you close now, recent changes may be lost.</p>
+          <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+            <button class="btn-cancel" data-action="cancel">Cancel</button>
+            <button class="btn-save" data-action="save" autofocus>Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector('.modal-close');
+    const onAction = async (action) => {
+      if (action === 'save') {
+        // Trigger the same logic as "Save Project" button
+        const btn = document.getElementById('exportBtn');
+        if (btn) btn.click();
+        modal.classList.add('hidden');
+      } else {
+        // cancel
+        modal.classList.add('hidden');
+      }
+    };
+    modal.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.dataset && target.dataset.action) {
+        onAction(target.dataset.action);
+      }
+      if (target === closeBtn) {
+        onAction('cancel');
+      }
+    });
+
+    _closeModalEl = modal;
+    return modal;
+  }
+
+  function _showCloseModal() {
+    const modal = _ensureCloseModal();
+    modal.classList.remove('hidden');
+    // Focus Save (default)
+    const saveBtn = modal.querySelector('[data-action="save"]');
+    if (saveBtn) saveBtn.focus();
+  }
+
+  _beforeUnloadHandler = (e) => {
+    e.preventDefault();
+    e.returnValue = '';
+    // After the user cancels the native dialog (chooses to stay), show custom modal
+    setTimeout(_showCloseModal, 0);
+  };
+  window.addEventListener('beforeunload', _beforeUnloadHandler);
   
   // Helper function to download a blob (fallback for browsers without File System Access API)
   function downloadBlob(blob, filename) {
