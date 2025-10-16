@@ -90,5 +90,21 @@ export function saveToStorage(nodes, edges, network) {
   }
   
   const data = { nodes: nodeData, edges: edges.get() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+    if (isQuota) {
+      console.warn('[Storage] Local storage quota exceeded. Recent changes may not be saved. Please export a ZIP for a full backup.');
+      try { localStorage.setItem('paper-web-storage-exceeded', 'true'); } catch {}
+      if (typeof window._setStorageExceededFlag === 'function') {
+        try { window._setStorageExceededFlag(true); } catch {}
+      }
+      if (typeof window._notifyStorageQuotaExceeded === 'function') {
+        try { window._notifyStorageQuotaExceeded(); } catch {}
+      }
+    } else {
+      console.error('Failed to save to localStorage', e);
+    }
+  }
 }

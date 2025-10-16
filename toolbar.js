@@ -177,6 +177,101 @@ export async function setupDocumentToolbar(network, nodes, edges) {
     }
   });
 
+  // --- Storage quota exceeded banner and helpers ---
+  let _storageBannerEl = null;
+  function _ensureStorageBanner() {
+    if (_storageBannerEl) return _storageBannerEl;
+    const banner = document.createElement('div');
+    banner.className = 'storage-warning-banner hidden';
+    banner.innerHTML = `
+      <div class="storage-warning-content">
+        <span class="storage-warning-text">Storage is full. Recent changes may not be saved. Please export your project as a ZIP to back up all data.</span>
+        <div class="storage-warning-actions">
+          <button class="btn-export-now">Export ZIP</button>
+          <button class="btn-dismiss">Dismiss</button>
+        </div>
+      </div>`;
+    // Place banner right after the main toolbar so it appears below it
+    const toolbar = document.getElementById('documentToolbar');
+    if (toolbar && toolbar.insertAdjacentElement) {
+      toolbar.insertAdjacentElement('afterend', banner);
+    } else {
+      document.body.appendChild(banner);
+    }
+    // Wire actions
+    const exportBtn = banner.querySelector('.btn-export-now');
+    const dismissBtn = banner.querySelector('.btn-dismiss');
+    if (exportBtn) exportBtn.addEventListener('click', () => {
+      const btn = document.getElementById('exportBtn');
+      if (btn) btn.click();
+    });
+    if (dismissBtn) dismissBtn.addEventListener('click', () => {
+      banner.classList.add('hidden');
+      try { localStorage.setItem('paper-web-storage-exceeded', 'false'); } catch {}
+    });
+    _storageBannerEl = banner;
+    return banner;
+  }
+
+  function _showStorageBanner() {
+    // Only show on the main web view (not in fullscreen editor)
+    if (document.body.classList.contains('fullscreen-editor-active')) {
+      console.log('[StorageBanner] Suppressed in fullscreen editor mode');
+      return;
+    }
+    const el = _ensureStorageBanner();
+    // Position directly below the toolbar
+    const toolbar = document.getElementById('documentToolbar');
+    let topPx = 0;
+    if (toolbar && !toolbar.classList.contains('hidden')) {
+      const rect = toolbar.getBoundingClientRect();
+      // Toolbar is fixed at top; use its height/bottom
+      topPx = Math.max(rect.bottom, toolbar.offsetHeight || 0);
+    }
+    console.log('[StorageBanner] Showing at top px =', topPx);
+    el.style.position = 'fixed';
+    el.style.left = '0px';
+    el.style.right = '0px';
+    el.style.top = `${topPx}px`;
+    el.classList.remove('hidden');
+    // Keep it in the right place on resize
+    const onResize = () => {
+      if (el.classList.contains('hidden')) return;
+      const tb = document.getElementById('documentToolbar');
+      let t = 0;
+      if (tb && !tb.classList.contains('hidden')) {
+        const r = tb.getBoundingClientRect();
+        t = Math.max(r.bottom, tb.offsetHeight || 0);
+      }
+      el.style.top = `${t}px`;
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    // Store handler for potential future cleanup (optional)
+    el._onResizeHandler = onResize;
+  }
+
+  // Expose helpers for other modules
+  window._notifyStorageQuotaExceeded = () => _showStorageBanner();
+  window._setStorageExceededFlag = (val) => {
+    try { localStorage.setItem('paper-web-storage-exceeded', val ? 'true' : 'false'); } catch {}
+  };
+
+  // On load, if the flag is set, show a gentle warning and then clear it on dismiss
+  try {
+    const exceeded = localStorage.getItem('paper-web-storage-exceeded');
+    if (exceeded === 'true') {
+      console.log('[StorageBanner] Flag detected on load. Scheduling banner show.');
+      // Defer slightly to avoid layout jank during initial render
+      setTimeout(_showStorageBanner, 300);
+    }
+  } catch {}
+
+  // Expose a manual test hook for debugging
+  window.showStorageBannerNow = () => {
+    try { localStorage.setItem('paper-web-storage-exceeded', 'true'); } catch {}
+    _showStorageBanner();
+  };
+
   document.getElementById('lockAllBtn').addEventListener('click', () => {
     const allNodes = nodes.get();
     const updates = allNodes.map(node => ({ id: node.id, physics: false }));

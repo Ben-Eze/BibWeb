@@ -1225,3 +1225,49 @@ body.fullscreen-editor-active #network {
 .toastui-editor .te-mode-switch-section {
     display: none !important;
 }
+
+/* Storage quota warning banner */
+.storage-warning-banner {
+    position: fixed; /* positioned dynamically below toolbar */
+    left: 0;
+    right: 0;
+    background: #ffc107; /* warning yellow */
+    color: #212529;
+    z-index: 10050;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-bottom: 1px solid #e0a800;
+}
+.storage-warning-banner.hidden { display: none; }
+.storage-warning-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+}
+.storage-warning-actions { display: flex; gap: 8px; }
+.storage-warning-actions .btn-export-now {
+    background: #343a40;
+    color: #fff;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.storage-warning-actions .btn-export-now:hover { background: #23272b; }
+.storage-warning-actions .btn-dismiss {
+    background: transparent;
+    color: #212529;
+    border: 1px solid #212529;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.storage-warning-actions .btn-dismiss:hover { background: rgba(0,0,0,0.05); }
+
+/* Hide banner when fullscreen editor is active */
+body.fullscreen-editor-active .storage-warning-banner { display: none !important; }

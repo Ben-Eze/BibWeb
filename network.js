@@ -299,7 +299,25 @@ export function setupNetwork() {
 			console.error('Failed to save node positions', e);
 		}
 		
-		localStorage.setItem('paper-web-data-v1', JSON.stringify(data));
+		// Attempt to persist graph to localStorage; if quota is exceeded, warn but do not block
+		try {
+			localStorage.setItem('paper-web-data-v1', JSON.stringify(data));
+		} catch (e) {
+			const isQuota = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+			if (isQuota) {
+				console.warn('[Storage] Local storage quota exceeded. Recent changes may not be saved. Please export a ZIP for a full backup.');
+				// Persist a flag (best-effort) and show a non-blocking warning
+				try { localStorage.setItem('paper-web-storage-exceeded', 'true'); } catch {}
+				if (typeof window._setStorageExceededFlag === 'function') {
+					try { window._setStorageExceededFlag(true); } catch {}
+				}
+				if (typeof window._notifyStorageQuotaExceeded === 'function') {
+					try { window._notifyStorageQuotaExceeded(); } catch {}
+				}
+			} else {
+				console.error('Failed to save to localStorage', e);
+			}
+		}
 		// Note: Assets are now automatically saved to IndexedDB when registered (see toolbar.js)
 	}
 
