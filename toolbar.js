@@ -591,9 +591,12 @@ export async function setupDocumentToolbar(network, nodes, edges) {
 
   _beforeUnloadHandler = (e) => {
     e.preventDefault();
-    e.returnValue = '';
+    const msg = 'You have unsaved changes.';
+    // Some browsers require a non-empty string and/or a return value
+    e.returnValue = msg;
     // After the user cancels the native dialog (chooses to stay), show custom modal
     setTimeout(_showCloseModal, 0);
+    return msg;
   };
   window.addEventListener('beforeunload', _beforeUnloadHandler);
   
