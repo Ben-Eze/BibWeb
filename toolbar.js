@@ -86,21 +86,95 @@ export async function setupDocumentToolbar(network, nodes, edges) {
     if (typeof network.unselectAll === 'function') network.unselectAll();
   }
   document.getElementById('clearBtn').addEventListener('click', () => {
-    if (confirm('Clear the entire graph? This cannot be undone.')) {
-      nodes.clear();
-      edges.clear();
-      // Remove overlay DOMs
-      const container = document.getElementById('nodeOverlayContainer');
-      if (container) {
-        while (container.firstChild) container.removeChild(container.firstChild);
+    if (!confirm('Clear the entire graph and all local project data? This cannot be undone.')) return;
+
+    (async () => {
+      try {
+        // Clear in-memory graph data first
+        nodes.clear();
+        edges.clear();
+
+        // Remove overlay DOMs
+        const container = document.getElementById('nodeOverlayContainer');
+        if (container) {
+          while (container.firstChild) container.removeChild(container.firstChild);
+        }
+
+        // Clear session assets map (in-memory)
+        try {
+          sessionAssets.clear();
+        } catch (e) {
+          // sessionAssets may not be present in some startup sequences
+          console.warn('sessionAssets not cleared:', e);
+        }
+
+        // Delete IndexedDB database used for assets (BibWebAssets)
+        try {
+          await new Promise((resolve) => {
+            const req = indexedDB.deleteDatabase('BibWebAssets');
+            req.onsuccess = () => { console.log('[Clear] IndexedDB BibWebAssets deleted'); resolve(); };
+            req.onerror = (ev) => { console.warn('[Clear] Failed to delete IndexedDB BibWebAssets', ev); resolve(); };
+            req.onblocked = () => { console.warn('[Clear] Delete blocked for BibWebAssets'); resolve(); };
+          });
+        } catch (e) {
+          console.warn('[Clear] IndexedDB delete error', e);
+        }
+
+        // Clear related localStorage keys (graph + exceeded flag + any settings namespace we used)
+        try {
+          localStorage.removeItem('paper-web-data-v1');
+          localStorage.removeItem('paper-web-storage-exceeded');
+          // Also clear any other project-scoped keys if present
+          try { localStorage.removeItem('paper-web-last-export-dir'); } catch {}
+        } catch (e) {
+          console.warn('[Clear] localStorage removal failed', e);
+        }
+
+        // Clear Cache Storage (service worker caches) for the origin
+        try {
+          if (window.caches && caches.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+            console.log('[Clear] CacheStorage cleared:', keys);
+          }
+        } catch (e) {
+          console.warn('[Clear] Cache clearing failed', e);
+        }
+
+        // Unregister service workers for this origin (best-effort)
+        try {
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+            console.log('[Clear] Service workers unregistered');
+          }
+        } catch (e) {
+          console.warn('[Clear] Service worker unregister failed', e);
+        }
+
+        // Reinitialize overlays and UI state
+        if (window._setupNodeOverlays) {
+          try { window._setupNodeOverlays(); } catch (e) { console.warn('[Clear] _setupNodeOverlays failed', e); }
+        }
+
+        // Attempt to persist an empty graph now that assets/caches were removed
+        if (typeof window._saveToStorage === 'function') {
+          try {
+            window._saveToStorage();
+          } catch (e) {
+            console.warn('[Clear] _saveToStorage after clear failed', e);
+          }
+        }
+
+        // Re-center network view
+        try { network.fit(); } catch (e) { /* ignore */ }
+
+        alert('Cleared graph, assets, and cached project data for this origin.');
+      } catch (err) {
+        console.error('Failed to fully clear project data', err);
+        alert('Failed to fully clear project data: ' + (err && err.message));
       }
-      // Reinitialize node overlays after clearing
-      if (window._setupNodeOverlays) {
-        window._setupNodeOverlays();
-      }
-      window._saveToStorage();
-      network.fit();
-    }
+    })();
   });
   document.getElementById('switchPhysics').onclick = function () {
     // Reset any selected papers first, then deselect
