@@ -67,6 +67,8 @@ export function setupPaperForm() {
     document.getElementById('paperNickname').value = nodeData.nickname || '';
     document.getElementById('paperAuthor').value = nodeData.authors || '';
     document.getElementById('paperDOI').value = nodeData.doi || '';
+    document.getElementById('paperYear').value = nodeData.year || '';
+    document.getElementById('paperCitations').value = nodeData.citations || '';
     document.getElementById('paperLink').value = nodeData.link || '';
     document.getElementById('paperNotes').value = nodeData.notes || '';
     
@@ -136,6 +138,8 @@ export function setupPaperForm() {
       nickname: document.getElementById('paperNickname').value.trim(),
       authors: document.getElementById('paperAuthor').value.trim(),
       doi: document.getElementById('paperDOI').value.trim(),
+      year: (document.getElementById('paperYear').value || '').toString().trim(),
+      citations: (document.getElementById('paperCitations').value || '').toString().trim(),
       notes: document.getElementById('paperNotes').value.trim(),
       type: currentType
     };
